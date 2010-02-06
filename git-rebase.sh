@@ -53,6 +53,7 @@ git_am_opt=
 rebase_root=
 force_rebase=
 allow_rerere_autoupdate=
+add_commit_name=
 
 continue_merge () {
 	test -n "$prev_head" || die "prev_head must be defined"
@@ -353,6 +354,10 @@ do
 	--rerere-autoupdate|--no-rerere-autoupdate)
 		allow_rerere_autoupdate="$1"
 		;;
+	-x)
+		git_am_opt="$git_am_opt --add-commit-name"
+		add_commit_name=t
+		;;
 	-*)
 		usage
 		;;
@@ -385,6 +390,10 @@ else
 	then
 		die "previous rebase directory $dotest still exists." \
 			'Try git rebase (--continue | --abort | --skip)'
+	fi
+	if test -n "$add_commit_name"
+	then
+		die "-x not compatible with --merge"
 	fi
 fi
 
