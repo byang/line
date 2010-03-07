@@ -250,8 +250,11 @@ static int run_builtin(struct cmd_struct *p, int argc, const char **argv)
 
 		if (use_pager == -1 && p->option & RUN_SETUP)
 			use_pager = check_pager_config(p->cmd);
-		if (use_pager == -1 && p->option & USE_PAGER)
+		if (use_pager == -1 && p->option & USE_PAGER) {
+			if ((p->option & (RUN_SETUP | RUN_SETUP_GENTLY)) == 0)
+				die("Internal error: USE_PAGER must be together with RUN_SETUP*");
 			use_pager = 1;
+		}
 	}
 	commit_pager_choice();
 
