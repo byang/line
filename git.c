@@ -217,13 +217,14 @@ static int handle_alias(int *argcp, const char ***argv)
 
 const char git_version_string[] = GIT_VERSION;
 
-#define RUN_SETUP	(1<<0)
-#define USE_PAGER	(1<<1)
+#define RUN_SETUP		(1<<0)
+#define USE_PAGER		(1<<1)
 /*
  * require working tree to be present -- anything uses this needs
  * RUN_SETUP for reading from the configuration file.
  */
-#define NEED_WORK_TREE	(1<<2)
+#define NEED_WORK_TREE		(1<<2)
+#define RUN_SETUP_GENTLY	(1<<3)
 
 struct cmd_struct {
 	const char *cmd;
@@ -242,6 +243,10 @@ static int run_builtin(struct cmd_struct *p, int argc, const char **argv)
 	if (!help) {
 		if (p->option & RUN_SETUP)
 			setup_git_directory();
+		if (p->option & RUN_SETUP_GENTLY) {
+			int nongit_ok;
+			setup_git_directory_gently(&nongit_ok);
+		}
 
 		if (use_pager == -1 && p->option & RUN_SETUP)
 			use_pager = check_pager_config(p->cmd);

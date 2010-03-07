@@ -1043,6 +1043,7 @@ int split_cmdline(char *cmdline, const char ***argv);
 /* git.c */
 struct startup_info {
 	const char *prefix;
+	int have_repository;
 };
 extern struct startup_info *startup_info;
 

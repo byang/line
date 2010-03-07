@@ -445,8 +445,10 @@ const char *setup_git_directory_gently(int *nongit_ok)
 	const char *prefix;
 
 	prefix = setup_git_directory_gently_1(nongit_ok);
-	if (startup_info)
+	if (startup_info) {
 		startup_info->prefix = prefix;
+		startup_info->have_repository = !nongit_ok || !*nongit_ok;
+	}
 	return prefix;
 }
 
