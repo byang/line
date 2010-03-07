@@ -414,7 +414,6 @@ static void show_html_page(const char *git_cmd)
 
 int cmd_help(int argc, const char **argv, const char *prefix)
 {
-	int nongit;
 	const char *alias;
 	enum help_format parsed_help_format;
 	load_command_list("git-", &main_cmds, &other_cmds);
@@ -437,7 +436,6 @@ int cmd_help(int argc, const char **argv, const char *prefix)
 		return 0;
 	}
 
-	setup_git_directory_gently(&nongit);
 	git_config(git_help_config, NULL);
 
 	if (parsed_help_format != HELP_FORMAT_NONE)
