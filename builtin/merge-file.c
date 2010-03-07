@@ -30,7 +30,6 @@ int cmd_merge_file(int argc, const char **argv, const char *prefix)
 	int level = XDL_MERGE_ZEALOUS_ALNUM;
 	int style = 0, quiet = 0;
 	int favor = 0;
-	int nongit;
 
 	struct option options[] = {
 		OPT_BOOLEAN('p', "stdout", &to_stdout, "send results to standard output"),
@@ -45,8 +44,7 @@ int cmd_merge_file(int argc, const char **argv, const char *prefix)
 		OPT_END(),
 	};
 
-	prefix = setup_git_directory_gently(&nongit);
-	if (!nongit) {
+	if (startup_info->have_repository) {
 		/* Read the configuration file */
 		git_config(git_xmerge_config, NULL);
 		if (0 <= git_xmerge_style)
