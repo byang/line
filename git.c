@@ -13,6 +13,7 @@ const char git_usage_string[] =
 const char git_more_info_string[] =
 	"See 'git help COMMAND' for more information on a specific command.";
 
+static struct startup_info git_startup_info;
 static int use_pager = -1;
 struct pager_config {
 	const char *cmd;
@@ -234,13 +235,13 @@ static int run_builtin(struct cmd_struct *p, int argc, const char **argv)
 {
 	int status, help;
 	struct stat st;
-	const char *prefix;
 
-	prefix = NULL;
+	memset(&git_startup_info, 0, sizeof(git_startup_info));
+	startup_info = &git_startup_info;
 	help = argc == 2 && !strcmp(argv[1], "-h");
 	if (!help) {
 		if (p->option & RUN_SETUP)
-			prefix = setup_git_directory();
+			setup_git_directory();
 
 		if (use_pager == -1 && p->option & RUN_SETUP)
 			use_pager = check_pager_config(p->cmd);
@@ -254,7 +255,7 @@ static int run_builtin(struct cmd_struct *p, int argc, const char **argv)
 
 	trace_argv_printf(argv, "trace: built-in: git");
 
-	status = p->fn(argc, argv, prefix);
+	status = p->fn(argc, argv, startup_info->prefix);
 	if (status)
 		return status;
 

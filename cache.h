@@ -1040,4 +1040,10 @@ void overlay_tree_on_cache(const char *tree_name, const char *prefix);
 char *alias_lookup(const char *alias);
 int split_cmdline(char *cmdline, const char ***argv);
 
+/* git.c */
+struct startup_info {
+	const char *prefix;
+};
+extern struct startup_info *startup_info;
+
 #endif /* CACHE_H */
