@@ -1027,9 +1027,6 @@ int cmd_mailinfo(int argc, const char **argv, const char *prefix)
 {
 	const char *def_charset;
 
-	/* NEEDSWORK: might want to do the optional .git/ directory
-	 * discovery
-	 */
 	git_config(git_mailinfo_config, NULL);
 
 	def_charset = (git_commit_encoding ? git_commit_encoding : "UTF-8");
