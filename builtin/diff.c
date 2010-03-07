@@ -252,7 +252,6 @@ int cmd_diff(int argc, const char **argv, const char *prefix)
 	int ents = 0, blobs = 0, paths = 0;
 	const char *path = NULL;
 	struct blobinfo blob[2];
-	int nongit;
 	int result = 0;
 
 	/*
@@ -278,7 +277,6 @@ int cmd_diff(int argc, const char **argv, const char *prefix)
 	 * Other cases are errors.
 	 */
 
-	prefix = setup_git_directory_gently(&nongit);
 	git_config(git_diff_ui_config, NULL);
 
 	if (diff_use_color_default == -1)
@@ -287,7 +285,7 @@ int cmd_diff(int argc, const char **argv, const char *prefix)
 	init_revisions(&rev, prefix);
 
 	/* If this is a no-index diff, just run it and exit there. */
-	diff_no_index(&rev, argc, argv, nongit, prefix);
+	diff_no_index(&rev, argc, argv, !startup_info->have_repository, prefix);
 
 	/* Otherwise, we are doing the usual "git" diff */
 	rev.diffopt.skip_stat_unmatch = !!diff_auto_refresh_index;
@@ -296,7 +294,7 @@ int cmd_diff(int argc, const char **argv, const char *prefix)
 	DIFF_OPT_SET(&rev.diffopt, ALLOW_EXTERNAL);
 	DIFF_OPT_SET(&rev.diffopt, ALLOW_TEXTCONV);
 
-	if (nongit)
+	if (!startup_info->have_repository)
 		die("Not a git repository");
 	argc = setup_revisions(argc, argv, &rev, NULL);
 	if (!rev.diffopt.output_format) {
