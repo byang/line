@@ -28,6 +28,11 @@ test_rev_parse() {
 	[ $# -eq 0 ] && return
 }
 
+cd .git/objects || exit 1
+say "subdirectory inside .git"
+test_rev_parse 'inside'       false true false objects/
+cd ../.. || exit 1
+
 EMPTY_TREE=$(git write-tree)
 mkdir -p work/sub/dir || exit 1
 mv .git repo.git || exit 1
