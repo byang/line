@@ -1047,6 +1047,7 @@ int split_cmdline(char *cmdline, const char ***argv);
 struct startup_info {
 	const char *prefix;
 	int have_repository;
+	int help;
 };
 extern struct startup_info *startup_info;
 
