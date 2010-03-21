@@ -350,14 +350,17 @@ static const char *setup_git_directory_gently_1(int *nongit_ok)
 				/* config may override worktree */
 				if (check_repository_format_gently(nongit_ok))
 					return NULL;
+				set_git_dir(gitdirenv);
 				return retval;
 			}
 			if (check_repository_format_gently(nongit_ok))
 				return NULL;
 			retval = get_relative_cwd(buffer, sizeof(buffer) - 1,
 					get_git_work_tree());
-			if (!retval || !*retval)
+			if (!retval || !*retval) {
+				set_git_dir(gitdirenv);
 				return NULL;
+			}
 			set_git_dir(make_absolute_path(gitdirenv));
 			if (chdir(work_tree_env) < 0)
 				die_errno ("Could not chdir to '%s'", work_tree_env);
@@ -392,8 +395,10 @@ static const char *setup_git_directory_gently_1(int *nongit_ok)
 	offset = len = strlen(cwd);
 	for (;;) {
 		gitfile_dir = read_gitfile_gently(DEFAULT_GIT_DIR_ENVIRONMENT);
-		if (gitfile_dir || is_git_directory(DEFAULT_GIT_DIR_ENVIRONMENT)) {
-			if (gitfile_dir && set_git_dir(gitfile_dir))
+		if (!gitfile_dir && is_git_directory(DEFAULT_GIT_DIR_ENVIRONMENT))
+			gitfile_dir = DEFAULT_GIT_DIR_ENVIRONMENT;
+		if (gitfile_dir) {
+			if (set_git_dir(gitfile_dir))
 				die("Repository setup failed");
 			inside_git_dir = 0;
 			if (!work_tree_env)
