@@ -480,7 +480,10 @@ static void bootstrap_attr_stack(void)
 			debug_push(elem);
 		}
 
-		elem = read_attr_from_file(git_path(INFOATTRIBUTES_FILE), 1);
+		if (!startup_info || startup_info->have_repository)
+			elem = read_attr_from_file(git_path(INFOATTRIBUTES_FILE), 1);
+		else
+			elem = NULL;
 		if (!elem)
 			elem = xcalloc(1, sizeof(*elem));
 		elem->origin = NULL;
