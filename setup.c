@@ -336,6 +336,8 @@ void unset_git_directory(const char *prefix)
 		die("Cannot change to '%s'", prefix);
 
 	if (startup_info) {
+		if (startup_info->have_repository)
+			unset_git_env();
 		startup_info->prefix = NULL;
 		startup_info->have_repository = 0;
 	}

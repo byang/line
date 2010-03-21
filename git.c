@@ -143,14 +143,13 @@ static int handle_options(const char ***argv, int *argc, int *envchanged)
 static int handle_alias(int *argcp, const char ***argv)
 {
 	int envchanged = 0, ret = 0, saved_errno = errno;
-	const char *subdir;
 	int count, option_count;
 	const char **new_argv;
 	const char *alias_command;
 	char *alias_string;
 	int unused_nongit;
 
-	subdir = setup_git_directory_gently(&unused_nongit);
+	setup_git_directory_gently(&unused_nongit);
 
 	alias_command = (*argv)[0];
 	alias_string = alias_lookup(alias_command);
@@ -207,8 +206,7 @@ static int handle_alias(int *argcp, const char ***argv)
 		ret = 1;
 	}
 
-	if (subdir && chdir(subdir))
-		die_errno("Cannot change to '%s'", subdir);
+	unset_git_directory(startup_info->prefix);
 
 	errno = saved_errno;
 
@@ -237,8 +235,6 @@ static int run_builtin(struct cmd_struct *p, int argc, const char **argv)
 	int status;
 	struct stat st;
 
-	memset(&git_startup_info, 0, sizeof(git_startup_info));
-	startup_info = &git_startup_info;
 	startup_info->help = argc == 2 && !strcmp(argv[1], "-h");
 	if (!startup_info->help) {
 		if (p->option & RUN_SETUP)
@@ -481,6 +477,9 @@ static int run_argv(int *argcp, const char ***argv)
 int main(int argc, const char **argv)
 {
 	const char *cmd;
+
+	memset(&git_startup_info, 0, sizeof(git_startup_info));
+	startup_info = &git_startup_info;
 
 	cmd = git_extract_argv0_path(argv[0]);
 	if (!cmd)

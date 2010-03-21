@@ -62,7 +62,22 @@ char *git_work_tree_cfg;
 static char *work_tree;
 
 static const char *git_dir;
+static const char *original_git_dir;
 static char *git_object_dir, *git_index_file, *git_refs_dir, *git_graft_file;
+
+void unset_git_env(void)
+{
+	git_dir = NULL;
+	if (original_git_dir)
+		setenv(GIT_DIR_ENVIRONMENT, original_git_dir, 1);
+	else
+		unsetenv(GIT_DIR_ENVIRONMENT);
+	git_object_dir = NULL;
+	git_refs_dir = NULL;
+	git_index_file = NULL;
+	git_graft_file = NULL;
+	read_replace_refs = 1;
+}
 
 static void setup_git_env(void)
 {
@@ -167,6 +182,11 @@ char *get_graft_file(void)
 
 int set_git_dir(const char *path)
 {
+	static int original_git_dir_set = 0;
+	if (!original_git_dir_set) {
+		original_git_dir = getenv(GIT_DIR_ENVIRONMENT);
+		original_git_dir_set = 1;
+	}
 	if (setenv(GIT_DIR_ENVIRONMENT, path, 1))
 		return error("Could not set GIT_DIR to '%s'", path);
 	setup_git_env();
