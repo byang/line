@@ -323,6 +323,33 @@ const char *read_gitfile_gently(const char *path)
 	return path;
 }
 
+void unset_git_directory(const char *prefix)
+{
+	/*
+	 * FIXME:
+	 * chdir(prefix) may be enough for most of cases,
+	 * if original cwd is outside worktree, prefix
+	 * will always be set NULL, thus impossible to move
+	 * back to orignal cwd
+	 */
+	if (prefix && chdir(prefix))
+		die("Cannot change to '%s'", prefix);
+
+	if (startup_info) {
+		startup_info->prefix = NULL;
+		startup_info->have_repository = 0;
+	}
+
+	/* Initialized in setup_git_directory_gently_1() */
+	inside_work_tree = -1;
+	inside_git_dir = -1;
+
+	/* Initialized in check_repository_format_version() */
+	repository_format_version = 0xFF;
+	shared_repository = PERM_UMASK;
+	is_bare_repository_cfg = -1;
+	git_work_tree_cfg = NULL;
+}
 /*
  * We cannot decide in this function whether we are in the work tree or
  * not, since the config can only be read _after_ this function was called.
@@ -403,6 +430,13 @@ static const char *setup_git_directory_gently_1(int *nongit_ok)
 	 * - ../ (bare)
 	 * - ../../.git/
 	 *   etc.
+	 *
+	 * When a repository is found:
+	 * - inside_git_dir/inside_work_tree are set
+	 * - check_repository_format_gently() is called
+	 *   if repo version is not supported, restore cwd
+	 * - set_git_dir
+	 * - calculate and return prefix
 	 */
 	offset = len = strlen(cwd);
 	for (;;) {
@@ -410,13 +444,15 @@ static const char *setup_git_directory_gently_1(int *nongit_ok)
 		if (!gitfile_dir && is_git_directory(DEFAULT_GIT_DIR_ENVIRONMENT))
 			gitfile_dir = DEFAULT_GIT_DIR_ENVIRONMENT;
 		if (gitfile_dir) {
-			if (set_git_dir(gitfile_dir))
-				die("Repository setup failed");
 			inside_git_dir = 0;
 			if (!work_tree_env)
 				inside_work_tree = 1;
-			if (check_repository_format_gently(gitfile_dir, nongit_ok))
+			if (check_repository_format_gently(gitfile_dir, nongit_ok)) {
+				unset_git_directory(offset != len ? cwd + offset + 1: NULL);
 				return NULL;
+			}
+			if (set_git_dir(gitfile_dir))
+				die("Repository setup failed");
 			root_len = offset_1st_component(cwd);
 			git_work_tree_cfg = xstrndup(cwd, offset > root_len ? offset : root_len);
 			break;
@@ -425,8 +461,10 @@ static const char *setup_git_directory_gently_1(int *nongit_ok)
 			inside_git_dir = 1;
 			if (!work_tree_env)
 				inside_work_tree = 0;
-			if (check_repository_format_gently(".", nongit_ok))
+			if (check_repository_format_gently(".", nongit_ok)) {
+				unset_git_directory(offset != len ? cwd + offset + 1: NULL);
 				return NULL;
+			}
 			if (offset != len) {
 				root_len = offset_1st_component(cwd);
 				cwd[offset > root_len ? offset : root_len] = '\0';
