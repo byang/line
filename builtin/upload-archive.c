@@ -26,9 +26,6 @@ static int run_upload_archive(int argc, const char **argv, const char *prefix)
 	int sent_argc;
 	int len;
 
-	if (argc != 2)
-		usage(upload_archive_usage);
-
 	if (strlen(argv[1]) + 1 > sizeof(buf))
 		die("insanely long repository name");
 
@@ -98,6 +95,10 @@ int cmd_upload_archive(int argc, const char **argv, const char *prefix)
 {
 	pid_t writer;
 	int fd1[2], fd2[2];
+
+	if (startup_info->help || argc != 2)
+		usage(upload_archive_usage);
+
 	/*
 	 * Set up sideband subprocess.
 	 *
