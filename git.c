@@ -149,7 +149,8 @@ static int handle_alias(int *argcp, const char ***argv)
 	char *alias_string;
 	int unused_nongit;
 
-	setup_git_directory_gently(&unused_nongit);
+	if (!startup_info->have_repository)
+		setup_git_directory_gently(&unused_nongit);
 
 	alias_command = (*argv)[0];
 	alias_string = alias_lookup(alias_command);
@@ -206,8 +207,6 @@ static int handle_alias(int *argcp, const char ***argv)
 		ret = 1;
 	}
 
-	unset_git_directory(startup_info->prefix);
-
 	errno = saved_errno;
 
 	return ret;
@@ -237,11 +236,17 @@ static int run_builtin(struct cmd_struct *p, int argc, const char **argv)
 
 	startup_info->help = argc == 2 && !strcmp(argv[1], "-h");
 	if (!startup_info->help) {
-		if (p->option & RUN_SETUP)
+		if ((p->option & RUN_SETUP) && !startup_info->have_repository)
 			setup_git_directory();
-		if (p->option & RUN_SETUP_GENTLY) {
+		else if ((p->option & RUN_SETUP_GENTLY) && !startup_info->have_repository) {
 			int nongit_ok;
 			setup_git_directory_gently(&nongit_ok);
+		}
+		else if (startup_info->have_repository) {
+			if (p->option & (RUN_SETUP_GENTLY | RUN_SETUP))
+				; /* done already */
+			else
+				unset_git_directory(startup_info->prefix);
 		}
 
 		if (use_pager == -1 && p->option & RUN_SETUP)
