@@ -50,12 +50,9 @@ static void cmd_log_init(int argc, const char **argv, const char *prefix,
 	if (default_date_mode)
 		rev->date_mode = parse_date_format(default_date_mode);
 
-	/*
-	 * Check for -h before setup_revisions(), or "git log -h" will
-	 * fail when run without a git directory.
-	 */
-	if (argc == 2 && !strcmp(argv[1], "-h"))
+	if (startup_info->help)
 		usage(builtin_log_usage);
+
 	argc = setup_revisions(argc, argv, rev, "HEAD");
 
 	if (!rev->show_notes_given && !rev->pretty_given)
