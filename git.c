@@ -257,6 +257,9 @@ static int run_builtin(struct cmd_struct *p, int argc, const char **argv)
 			use_pager = 1;
 		}
 	}
+	else
+		/* Stop git_config() from complaining that no repository found. */
+		startup_info->have_run_setup_gitdir = 1;
 	commit_pager_choice();
 
 	if (!startup_info->help && p->option & NEED_WORK_TREE)

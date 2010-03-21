@@ -1047,6 +1047,7 @@ int split_cmdline(char *cmdline, const char ***argv);
 /* git.c */
 struct startup_info {
 	const char *prefix;
+	int have_run_setup_gitdir;
 	int have_repository;
 	int help;
 };

@@ -288,6 +288,7 @@ int init_db(const char *git_dir, const char *template_dir, unsigned int flags)
 
 	set_git_dir(make_absolute_path(git_dir));
 	startup_info->have_repository = 1;
+	startup_info->have_run_setup_gitdir = 1;
 
 	safe_create_dir(get_git_dir(), 0);
 
