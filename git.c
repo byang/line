@@ -242,11 +242,14 @@ static int run_builtin(struct cmd_struct *p, int argc, const char **argv)
 			int nongit_ok;
 			setup_git_directory_gently(&nongit_ok);
 		}
-		else if (startup_info->have_repository) {
-			if (p->option & (RUN_SETUP_GENTLY | RUN_SETUP))
-				; /* done already */
-			else
-				unset_git_directory(startup_info->prefix);
+		else if (startup_info->have_run_setup_gitdir) {
+			if (startup_info->have_repository) {
+				if (p->option & (RUN_SETUP_GENTLY | RUN_SETUP))
+					; /* done already */
+				else
+					unset_git_directory(startup_info->prefix);
+			}
+			startup_info->have_run_setup_gitdir = 0;
 		}
 
 		if (use_pager == -1 && p->option & RUN_SETUP)

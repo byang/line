@@ -358,7 +358,7 @@ void unset_git_directory(const char *prefix)
 	inside_git_dir = -1;
 
 	/* Initialized in check_repository_format_version() */
-	repository_format_version = 0xFF;
+	repository_format_version = 0;
 	shared_repository = PERM_UMASK;
 	is_bare_repository_cfg = -1;
 	git_work_tree_cfg = NULL;
