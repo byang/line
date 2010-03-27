@@ -548,6 +548,13 @@ int main(int argc, const char **argv)
 			exit(1);
 		}
 		if (!done_help) {
+			/*
+			 * help_unknown_cmd() requires that a repository has been
+			 * searched for and set up if found.
+			 * Luckily, the alias handling code already took care of this.
+			 */
+			if (!startup_info->have_run_setup_gitdir)
+				die("internal error: handling unknown command");
 			cmd = argv[0] = help_unknown_cmd(cmd);
 			done_help = 1;
 		} else
