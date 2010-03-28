@@ -3,7 +3,7 @@ git-remote-helpers(1)
 
 NAME
 ----
-git-remote-helpers - Helper programs for interoperation with remote git
+git-remote-helpers - Helper programs to interact with remote repositories
 
 SYNOPSIS
 --------
@@ -12,11 +12,31 @@ SYNOPSIS
 DESCRIPTION
 -----------
 
-These programs are normally not used directly by end users, but are
-invoked by various git programs that interact with remote repositories
-when the repository they would operate on will be accessed using
-transport code not linked into the main git binary. Various particular
-helper programs will behave as documented here.
+Remote helper programs are normally not used directly by end users,
+but are invoked by git when it needs to interact with remote
+repositories. They implement a subset of the capabilities documented
+here, and conform to the "remote helper protocol". When git needs
+needs to interact with a repository served by a remote helper, it
+spawns the helper as an independent process and interacts with it over
+the specified protocol. Essentially, git sends commands to the helper
+over standard input, and receives the result written to standard
+output by the helper over a pipe. Also, since remote helpers often
+need to link to the libraries required to interact with the remote
+repository, they avoid linking to the main git programs to evade
+licensing issues.
+
+All the capabilities of remote helpers have to do with discovering and
+updating remote refs, transporting objects between local and remote,
+and updating the local object store. Using the 'fetch' capability,
+they can discover refs on the remote, transfer objects from the remote
+reachable via those refs to local, and update the local object
+store. Using the 'push' capability, they can transfer objects from
+local to remote, and update the corresponding refs as necessary.
+
+Git comes with a "curl" family of remote helpers, specifically
+'git-remote-http', 'git-remote-https', 'git-remote-ftp' and
+'git-remote-ftps'. They implement the capabilities 'fetch', 'option',
+and 'push'.
 
 COMMANDS
 --------
