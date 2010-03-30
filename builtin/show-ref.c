@@ -204,7 +204,7 @@ static const struct option show_ref_options[] = {
 
 int cmd_show_ref(int argc, const char **argv, const char *prefix)
 {
-	if (argc == 2 && !strcmp(argv[1], "-h"))
+	if (startup_info->help)
 		usage_with_options(show_ref_usage, show_ref_options);
 
 	argc = parse_options(argc, argv, prefix, show_ref_options,

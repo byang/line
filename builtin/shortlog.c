@@ -249,7 +249,6 @@ int cmd_shortlog(int argc, const char **argv, const char *prefix)
 {
 	static struct shortlog log;
 	static struct rev_info rev;
-	int nongit;
 
 	static const struct option options[] = {
 		OPT_BOOLEAN('n', "numbered", &log.sort_by_number,
@@ -265,7 +264,6 @@ int cmd_shortlog(int argc, const char **argv, const char *prefix)
 
 	struct parse_opt_ctx_t ctx;
 
-	prefix = setup_git_directory_gently(&nongit);
 	git_config(git_default_config, NULL);
 	shortlog_init(&log);
 	init_revisions(&rev, prefix);
@@ -292,7 +290,7 @@ parse_done:
 	log.user_format = rev.commit_format == CMIT_FMT_USERFORMAT;
 
 	/* assume HEAD if from a tty */
-	if (!nongit && !rev.pending.nr && isatty(0))
+	if (startup_info->have_repository && !rev.pending.nr && isatty(0))
 		add_head_to_pending(&rev);
 	if (rev.pending.nr == 0) {
 		if (isatty(0))

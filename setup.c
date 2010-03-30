@@ -237,13 +237,35 @@ void setup_work_tree(void)
 		git_dir = make_absolute_path(git_dir);
 	if (!work_tree || chdir(work_tree))
 		die("This operation must be run in a work tree");
+
+	/*
+	 * have_run_setup_gitdir is unset in order to avoid die()ing
+	 * inside set_git_env(). We don't actually initialize
+	 * repo twice, we're just relative-izing gitdir
+	 */
+	if (startup_info)
+		startup_info->have_run_setup_gitdir = 0;
 	set_git_dir(make_relative_path(git_dir, work_tree));
+	if (startup_info)
+		startup_info->have_run_setup_gitdir = 1;
 	initialized = 1;
 }
 
-static int check_repository_format_gently(int *nongit_ok)
+static int check_repository_format_gently(const char *gitdir, int *nongit_ok)
 {
-	git_config(check_repository_format_version, NULL);
+	char repo_config[PATH_MAX+1];
+
+	/*
+	 * git_config() can't be used here because it calls git_pathdup()
+	 * to get $GIT_CONFIG/config. That call will make setup_git_env()
+	 * set git_dir to ".git".
+	 *
+	 * We are in gitdir setup, no git dir has been found useable yet.
+	 * Use a gentler version of git_config() to check if this repo
+	 * is a good one.
+	 */
+	snprintf(repo_config, PATH_MAX, "%s/config", gitdir);
+	git_config_early(check_repository_format_version, NULL, repo_config);
 	if (GIT_REPO_VERSION < repository_format_version) {
 		if (!nongit_ok)
 			die ("Expected git repo version <= %d, found %d",
@@ -311,11 +333,41 @@ const char *read_gitfile_gently(const char *path)
 	return path;
 }
 
+void unset_git_directory(const char *prefix)
+{
+	/*
+	 * FIXME:
+	 * chdir(prefix) may be enough for most of cases,
+	 * if original cwd is outside worktree, prefix
+	 * will always be set NULL, thus impossible to move
+	 * back to orignal cwd
+	 */
+	if (prefix && chdir(prefix))
+		die("Cannot change to '%s'", prefix);
+
+	if (startup_info) {
+		if (startup_info->have_repository)
+			unset_git_env();
+		startup_info->prefix = NULL;
+		startup_info->have_repository = 0;
+		startup_info->have_run_setup_gitdir = 0;
+	}
+
+	/* Initialized in setup_git_directory_gently_1() */
+	inside_work_tree = -1;
+	inside_git_dir = -1;
+
+	/* Initialized in check_repository_format_version() */
+	repository_format_version = 0;
+	shared_repository = PERM_UMASK;
+	is_bare_repository_cfg = -1;
+	git_work_tree_cfg = NULL;
+}
 /*
  * We cannot decide in this function whether we are in the work tree or
  * not, since the config can only be read _after_ this function was called.
  */
-const char *setup_git_directory_gently(int *nongit_ok)
+static const char *setup_git_directory_gently_1(int *nongit_ok)
 {
 	const char *work_tree_env = getenv(GIT_WORK_TREE_ENVIRONMENT);
 	const char *env_ceiling_dirs = getenv(CEILING_DIRECTORIES_ENVIRONMENT);
@@ -350,16 +402,19 @@ const char *setup_git_directory_gently(int *nongit_ok)
 			if (!work_tree_env) {
 				retval = set_work_tree(gitdirenv);
 				/* config may override worktree */
-				if (check_repository_format_gently(nongit_ok))
+				if (check_repository_format_gently(gitdirenv, nongit_ok))
 					return NULL;
+				set_git_dir(gitdirenv);
 				return retval;
 			}
-			if (check_repository_format_gently(nongit_ok))
+			if (check_repository_format_gently(gitdirenv, nongit_ok))
 				return NULL;
 			retval = get_relative_cwd(buffer, sizeof(buffer) - 1,
 					get_git_work_tree());
-			if (!retval || !*retval)
+			if (!retval || !*retval) {
+				set_git_dir(gitdirenv);
 				return NULL;
+			}
 			set_git_dir(make_absolute_path(gitdirenv));
 			if (chdir(work_tree_env) < 0)
 				die_errno ("Could not chdir to '%s'", work_tree_env);
@@ -390,6 +445,13 @@ const char *setup_git_directory_gently(int *nongit_ok)
 	 * - ../ (bare)
 	 * - ../../.git/
 	 *   etc.
+	 *
+	 * When a repository is found:
+	 * - inside_git_dir/inside_work_tree are set
+	 * - check_repository_format_gently() is called
+	 *   if repo version is not supported, restore cwd
+	 * - set_git_dir
+	 * - calculate and return prefix
 	 */
 	offset = len = strlen(cwd);
 	one_filesystem = git_env_bool("GIT_ONE_FILESYSTEM", 0);
@@ -400,25 +462,37 @@ const char *setup_git_directory_gently(int *nongit_ok)
 	}
 	for (;;) {
 		gitfile_dir = read_gitfile_gently(DEFAULT_GIT_DIR_ENVIRONMENT);
+		if (!gitfile_dir && is_git_directory(DEFAULT_GIT_DIR_ENVIRONMENT))
+			gitfile_dir = DEFAULT_GIT_DIR_ENVIRONMENT;
 		if (gitfile_dir) {
+			inside_git_dir = 0;
+			if (!work_tree_env)
+				inside_work_tree = 1;
+			if (check_repository_format_gently(gitfile_dir, nongit_ok)) {
+				unset_git_directory(offset != len ? cwd + offset + 1: NULL);
+				return NULL;
+			}
 			if (set_git_dir(gitfile_dir))
 				die("Repository setup failed");
+			root_len = offset_1st_component(cwd);
+			git_work_tree_cfg = xstrndup(cwd, offset > root_len ? offset : root_len);
 			break;
 		}
-		if (is_git_directory(DEFAULT_GIT_DIR_ENVIRONMENT))
-			break;
 		if (is_git_directory(".")) {
 			inside_git_dir = 1;
 			if (!work_tree_env)
 				inside_work_tree = 0;
+			if (check_repository_format_gently(".", nongit_ok)) {
+				unset_git_directory(offset != len ? cwd + offset + 1: NULL);
+				return NULL;
+			}
 			if (offset != len) {
 				root_len = offset_1st_component(cwd);
 				cwd[offset > root_len ? offset : root_len] = '\0';
 				set_git_dir(cwd);
 			} else
 				set_git_dir(".");
-			check_repository_format_gently(nongit_ok);
-			return NULL;
+			break;
 		}
 		while (--offset > ceil_offset && cwd[offset] != '/');
 		if (offset <= ceil_offset) {
@@ -453,13 +527,6 @@ const char *setup_git_directory_gently(int *nongit_ok)
 		}
 	}
 
-	inside_git_dir = 0;
-	if (!work_tree_env)
-		inside_work_tree = 1;
-	root_len = offset_1st_component(cwd);
-	git_work_tree_cfg = xstrndup(cwd, offset > root_len ? offset : root_len);
-	if (check_repository_format_gently(nongit_ok))
-		return NULL;
 	if (offset == len)
 		return NULL;
 
@@ -468,6 +535,117 @@ const char *setup_git_directory_gently(int *nongit_ok)
 	cwd[len++] = '/';
 	cwd[len] = 0;
 	return cwd + offset;
+}
+
+const char *setup_git_directory_gently(int *nongit_ok)
+{
+	const char *prefix;
+
+	prefix = setup_git_directory_gently_1(nongit_ok);
+	if (startup_info) {
+		startup_info->prefix = prefix;
+		startup_info->have_run_setup_gitdir = 1;
+		startup_info->have_repository = !nongit_ok || !*nongit_ok;
+	}
+	return prefix;
+}
+
+/*
+ * First, one directory to try is determined by the following algorithm.
+ *
+ * (0) If "strict" is given, the path is used as given and no DWIM is
+ *     done. Otherwise:
+ * (1) "~/path" to mean path under the running user's home directory;
+ * (2) "~user/path" to mean path under named user's home directory;
+ * (3) "relative/path" to mean cwd relative directory; or
+ * (4) "/absolute/path" to mean absolute directory.
+ *
+ * Unless "strict" is given, we try access() for existence of "%s.git/.git",
+ * "%s/.git", "%s.git", "%s" in this order.  The first one that exists is
+ * what we try.
+ *
+ * Second, we try chdir() to that.  Upon failure, we return NULL.
+ *
+ * Then, we try if the current directory is a valid git repository.
+ * Upon failure, we return NULL.
+ *
+ * If all goes well, we return the directory we used to chdir() (but
+ * before ~user is expanded), avoiding getcwd() resolving symbolic
+ * links.  User relative paths are also returned as they are given,
+ * except DWIM suffixing.
+ */
+char *enter_repo(char *path, int strict)
+{
+	static char used_path[PATH_MAX];
+	static char validated_path[PATH_MAX];
+
+	if (!path)
+		return NULL;
+
+	if (!strict) {
+		static const char *suffix[] = {
+			".git/.git", "/.git", ".git", "", NULL,
+		};
+		int len = strlen(path);
+		int i;
+		while ((1 < len) && (path[len-1] == '/')) {
+			path[len-1] = 0;
+			len--;
+		}
+		if (PATH_MAX <= len)
+			return NULL;
+		if (path[0] == '~') {
+			char *newpath = expand_user_path(path);
+			if (!newpath || (PATH_MAX - 10 < strlen(newpath))) {
+				free(newpath);
+				return NULL;
+			}
+			/*
+			 * Copy back into the static buffer. A pity
+			 * since newpath was not bounded, but other
+			 * branches of the if are limited by PATH_MAX
+			 * anyway.
+			 */
+			strcpy(used_path, newpath); free(newpath);
+			strcpy(validated_path, path);
+			path = used_path;
+		}
+		else if (PATH_MAX - 10 < len)
+			return NULL;
+		else {
+			path = strcpy(used_path, path);
+			strcpy(validated_path, path);
+		}
+		len = strlen(path);
+		for (i = 0; suffix[i]; i++) {
+			strcpy(path + len, suffix[i]);
+			if (!access(path, F_OK)) {
+				strcat(validated_path, suffix[i]);
+				break;
+			}
+		}
+		if (!suffix[i] || chdir(path))
+			return NULL;
+		path = validated_path;
+	}
+	else if (chdir(path))
+		return NULL;
+
+	if (access("objects", X_OK) == 0 && access("refs", X_OK) == 0 &&
+	    validate_headref("HEAD") == 0) {
+		inside_work_tree = 0;
+		inside_git_dir = 1;
+		check_repository_format_gently(".", NULL);
+		set_git_dir(".");
+		if (startup_info) {
+			startup_info->prefix = NULL;
+			startup_info->have_run_setup_gitdir = 1;
+			startup_info->have_repository = 1;
+		}
+		return path;
+	}
+
+	return NULL;
 }
 
 int git_config_perm(const char *var, const char *value)
@@ -543,7 +721,7 @@ int check_repository_format_version(const char *var, const char *value, void *cb
 
 int check_repository_format(void)
 {
-	return check_repository_format_gently(NULL);
+	return check_repository_format_gently(get_git_dir(), NULL);
 }
 
 const char *setup_git_directory(void)

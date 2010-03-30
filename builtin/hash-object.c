@@ -78,7 +78,7 @@ static const struct option hash_object_options[] = {
 int cmd_hash_object(int argc, const char **argv, const char *prefix)
 {
 	int i;
-	int prefix_length = -1;
+	int prefix_length;
 	const char *errstr = NULL;
 
 	type = blob_type;
@@ -86,9 +86,10 @@ int cmd_hash_object(int argc, const char **argv, const char *prefix)
 	argc = parse_options(argc, argv, NULL, hash_object_options,
 			     hash_object_usage, 0);
 
+	prefix_length = prefix ? strlen(prefix) : 0;
 	if (write_object) {
-		prefix = setup_git_directory();
-		prefix_length = prefix ? strlen(prefix) : 0;
+		if (!startup_info->have_repository)
+			die("No repository found");
 		if (vpath && prefix)
 			vpath = prefix_filename(prefix, prefix_length, vpath);
 	}
@@ -121,7 +122,7 @@ int cmd_hash_object(int argc, const char **argv, const char *prefix)
 	for (i = 0 ; i < argc; i++) {
 		const char *arg = argv[i];
 
-		if (0 <= prefix_length)
+		if (prefix_length)
 			arg = prefix_filename(prefix, prefix_length, arg);
 		hash_object(arg, type, write_object,
 			    no_filters ? NULL : vpath ? vpath : arg);

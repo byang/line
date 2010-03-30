@@ -886,6 +886,9 @@ int cmd_merge(int argc, const char **argv, const char *prefix)
 	const char *best_strategy = NULL, *wt_strategy = NULL;
 	struct commit_list **remotes = &remoteheads;
 
+	if (startup_info->help)
+		usage_with_options(builtin_merge_usage, builtin_merge_options);
+
 	if (read_cache_unmerged()) {
 		die_resolve_conflict("merge");
 	}

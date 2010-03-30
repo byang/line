@@ -787,7 +787,7 @@ int cmd_grep(int argc, const char **argv, const char *prefix)
 	const char **paths = NULL;
 	int i;
 	int dummy;
-	int nongit = 0, use_index = 1;
+	int use_index = 1;
 	struct option options[] = {
 		OPT_BOOLEAN(0, "cached", &cached,
 			"search in index instead of in the work tree"),
@@ -875,13 +875,11 @@ int cmd_grep(int argc, const char **argv, const char *prefix)
 		OPT_END()
 	};
 
-	prefix = setup_git_directory_gently(&nongit);
-
 	/*
 	 * 'git grep -h', unlike 'git grep -h <pattern>', is a request
 	 * to show usage information and exit.
 	 */
-	if (argc == 2 && !strcmp(argv[1], "-h"))
+	if (startup_info->help)
 		usage_with_options(grep_usage, options);
 
 	memset(&opt, 0, sizeof(opt));
@@ -921,9 +919,8 @@ int cmd_grep(int argc, const char **argv, const char *prefix)
 			     PARSE_OPT_STOP_AT_NON_OPTION |
 			     PARSE_OPT_NO_INTERNAL_HELP);
 
-	if (use_index && nongit)
-		/* die the same way as if we did it at the beginning */
-		setup_git_directory();
+	if (use_index && !startup_info->have_repository)
+		die("No git repository found");
 
 	/*
 	 * skip a -- separator; we know it cannot be

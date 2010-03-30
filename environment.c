@@ -52,6 +52,7 @@ enum object_creation_mode object_creation_mode = OBJECT_CREATION_MODE;
 char *notes_ref_name;
 int grafts_replace_parents = 1;
 int core_apply_sparse_checkout;
+struct startup_info *startup_info;
 
 /* Parallel index stat data preload? */
 int core_preload_index = 0;
@@ -61,6 +62,7 @@ char *git_work_tree_cfg;
 static char *work_tree;
 
 static const char *git_dir;
+static const char *original_git_dir;
 static char *git_object_dir, *git_index_file, *git_refs_dir, *git_graft_file;
 
 /*
@@ -80,11 +82,34 @@ const char * const local_repo_env[LOCAL_REPO_ENV_SIZE + 1] = {
 	NULL
 };
 
+void unset_git_env(void)
+{
+	git_dir = NULL;
+	if (original_git_dir)
+		setenv(GIT_DIR_ENVIRONMENT, original_git_dir, 1);
+	else
+		unsetenv(GIT_DIR_ENVIRONMENT);
+	git_object_dir = NULL;
+	git_refs_dir = NULL;
+	git_index_file = NULL;
+	git_graft_file = NULL;
+	read_replace_refs = 1;
+}
+
 static void setup_git_env(void)
 {
+	if (startup_info && startup_info->have_run_setup_gitdir)
+		die("internal error: setup_git_env can't be called twice");
 	git_dir = getenv(GIT_DIR_ENVIRONMENT);
-	if (!git_dir)
-		git_dir = read_gitfile_gently(DEFAULT_GIT_DIR_ENVIRONMENT);
+	if (!git_dir) {
+		/*
+		 * Repo detection should be done by setup_git_directory*
+		 * or enter_repo, not by this function
+		 */
+		 if (startup_info)
+			 die("internal error: $GIT_DIR is empty");
+		 git_dir = read_gitfile_gently(DEFAULT_GIT_DIR_ENVIRONMENT);
+	}
 	if (!git_dir)
 		git_dir = DEFAULT_GIT_DIR_ENVIRONMENT;
 	git_object_dir = getenv(DB_ENVIRONMENT);
@@ -183,6 +208,11 @@ char *get_graft_file(void)
 
 int set_git_dir(const char *path)
 {
+	static int original_git_dir_set = 0;
+	if (!original_git_dir_set) {
+		original_git_dir = getenv(GIT_DIR_ENVIRONMENT);
+		original_git_dir_set = 1;
+	}
 	if (setenv(GIT_DIR_ENVIRONMENT, path, 1))
 		return error("Could not set GIT_DIR to '%s'", path);
 	setup_git_env();

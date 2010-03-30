@@ -191,6 +191,9 @@ int cmd_gc(int argc, const char **argv, const char *prefix)
 
 	git_config(gc_config, NULL);
 
+	if (startup_info->help)
+		usage_with_options(builtin_gc_usage, builtin_gc_options);
+
 	if (pack_refs < 0)
 		pack_refs = !is_bare_repository();
 

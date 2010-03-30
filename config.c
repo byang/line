@@ -764,10 +764,9 @@ int git_config_from_parameters(config_fn_t fn, void *data)
 	return 0;
 }
 
-int git_config(config_fn_t fn, void *data)
+int git_config_early(config_fn_t fn, void *data, const char *repo_config)
 {
 	int ret = 0, found = 0;
-	char *repo_config = NULL;
 	const char *home = NULL;
 
 	/* Setting $GIT_CONFIG makes git read _only_ the given config file. */
@@ -789,20 +788,27 @@ int git_config(config_fn_t fn, void *data)
 		free(user_config);
 	}
 
-	repo_config = git_pathdup("config");
-	if (!access(repo_config, R_OK)) {
+	if (repo_config && !access(repo_config, R_OK)) {
 		ret += git_config_from_file(fn, repo_config, data);
 		found += 1;
 	}
-	free(repo_config);
-
-	if (config_parameters) {
-		ret += git_config_from_parameters(fn, data);
-		found += 1;
-	}
-
 	if (found == 0)
 		return -1;
+	return ret;
+}
+
+int git_config(config_fn_t fn, void *data)
+{
+	char *repo_config = NULL;
+	int ret;
+
+	if (startup_info && !startup_info->have_run_setup_gitdir)
+		die("internal error: access to .git/config without repo setup");
+	if (!startup_info || startup_info->have_repository)
+		repo_config = git_pathdup("config");
+	ret = git_config_early(fn, data, repo_config);
+	if (repo_config)
+		free(repo_config);
 	return ret;
 }
 

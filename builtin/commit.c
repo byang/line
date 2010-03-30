@@ -1034,6 +1034,9 @@ int cmd_status(int argc, const char **argv, const char *prefix)
 		OPT_END(),
 	};
 
+	if (startup_info->help)
+		usage_with_options(builtin_status_usage, builtin_status_options);
+
 	if (null_termination && status_format == STATUS_FORMAT_LONG)
 		status_format = STATUS_FORMAT_PORCELAIN;
 
@@ -1207,6 +1210,9 @@ int cmd_commit(int argc, const char **argv, const char *prefix)
 	struct stat statbuf;
 	int allow_fast_forward = 1;
 	struct wt_status s;
+
+	if (startup_info->help)
+		usage_with_options(builtin_commit_usage, builtin_commit_options);
 
 	wt_status_prepare(&s);
 	git_config(git_commit_config, &s);
