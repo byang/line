@@ -237,13 +237,13 @@ struct cmd_struct {
 
 static int run_builtin(struct cmd_struct *p, int argc, const char **argv)
 {
-	int status, help;
+	int status;
 	struct stat st;
 
 	memset(&git_startup_info, 0, sizeof(git_startup_info));
 	startup_info = &git_startup_info;
-	help = argc == 2 && !strcmp(argv[1], "-h");
-	if (!help) {
+	startup_info->help = argc == 2 && !strcmp(argv[1], "-h");
+	if (!startup_info->help) {
 		if (p->option & RUN_SETUP)
 			setup_git_directory();
 		if (p->option & RUN_SETUP_GENTLY) {
@@ -261,7 +261,7 @@ static int run_builtin(struct cmd_struct *p, int argc, const char **argv)
 	}
 	commit_pager_choice();
 
-	if (!help && p->option & NEED_WORK_TREE)
+	if (!startup_info->help && p->option & NEED_WORK_TREE)
 		setup_work_tree();
 
 	trace_argv_printf(argv, "trace: built-in: git");
