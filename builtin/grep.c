@@ -879,7 +879,7 @@ int cmd_grep(int argc, const char **argv, const char *prefix)
 	 * 'git grep -h', unlike 'git grep -h <pattern>', is a request
 	 * to show usage information and exit.
 	 */
-	if (argc == 2 && !strcmp(argv[1], "-h"))
+	if (startup_info->help)
 		usage_with_options(grep_usage, options);
 
 	memset(&opt, 0, sizeof(opt));

@@ -601,7 +601,7 @@ int cmd_pack_redundant(int argc, const char **argv, const char *prefix)
 	unsigned char *sha1;
 	char buf[42]; /* 40 byte sha1 + \n + \0 */
 
-	if (argc == 2 && !strcmp(argv[1], "-h"))
+	if (startup_info->help)
 		usage(pack_redundant_usage);
 
 	for (i = 1; i < argc; i++) {

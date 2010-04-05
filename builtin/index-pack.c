@@ -880,7 +880,7 @@ int cmd_index_pack(int argc, const char **argv, const char *prefix)
 	struct pack_idx_entry **idx_objects;
 	unsigned char pack_sha1[20];
 
-	if (argc == 2 && !strcmp(argv[1], "-h"))
+	if (startup_info->help)
 		usage(index_pack_usage);
 
 	/*

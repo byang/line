@@ -20,7 +20,7 @@ static const char *diff_index_args[] = {
 
 int cmd_merge_ours(int argc, const char **argv, const char *prefix)
 {
-	if (argc == 2 && !strcmp(argv[1], "-h"))
+	if (startup_info->help)
 		usage(builtin_merge_ours_usage);
 
 	/*
