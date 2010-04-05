@@ -651,6 +651,9 @@ int cmd_branch(int argc, const char **argv, const char *prefix)
 		OPT_END(),
 	};
 
+	if (startup_info->help)
+		usage_with_options(builtin_branch_usage, options);
+
 	git_config(git_branch_config, NULL);
 
 	if (branch_use_color == -1)

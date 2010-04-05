@@ -515,6 +515,9 @@ int cmd_ls_files(int argc, const char **argv, const char *prefix)
 		OPT_END()
 	};
 
+	if (startup_info->help)
+		usage_with_options(ls_files_usage, builtin_ls_files_options);
+
 	memset(&dir, 0, sizeof(dir));
 	if (prefix)
 		prefix_offset = strlen(prefix);
