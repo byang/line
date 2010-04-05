@@ -2546,7 +2546,7 @@ static int apply_binary(struct image *img, struct patch *patch)
 		return 0; /* deletion patch */
 	}
 
-	if (has_sha1_file(sha1)) {
+	if (startup_info->have_repository && has_sha1_file(sha1)) {
 		/* We already have the postimage */
 		enum object_type type;
 		unsigned long size;
