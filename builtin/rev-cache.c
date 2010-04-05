@@ -5,6 +5,8 @@
 #include "revision.h"
 #include "rev-cache.h"
 
+unsigned long default_ignore_size = 50 * 1024 * 1024; /* 50mb */
+
 /* porcelain for rev-cache.c */
 static int handle_add(int argc, const char *argv[]) /* args beyond this command */
 {
@@ -24,7 +26,7 @@ static int handle_add(int argc, const char *argv[]) /* args beyond this command 
 		if (!strcmp(argv[i], "--stdin"))
 			dostdin = 1;
 		else if (!strcmp(argv[i], "--fresh") || !strcmp(argv[i], "--incremental"))
-			starts_from_slices(&revs, UNINTERESTING);
+			starts_from_slices(&revs, UNINTERESTING, 0, 0);
 		else if (!strcmp(argv[i], "--not"))
 			flags ^= UNINTERESTING;
 		else if (!strcmp(argv[i], "--legs") || !strcmp(argv[i], "--close"))
@@ -151,6 +153,60 @@ static int handle_walk(int argc, const char *argv[])
 	return 0;
 }
 
+static int handle_fuse(int argc, const char *argv[])
+{
+	struct rev_info revs;
+	struct rev_cache_info rci;
+	const char *args[5];
+	int t, i, argn = 0;
+	char add_all = 0;
+
+	init_revisions(&revs, 0);
+	init_rev_cache_info(&rci);
+	args[argn++] = "rev-list";
+
+	for (i = 0; i < argc; i++) {
+		t = 1;
+		if (!strcmp(argv[i], "--all")) {
+			args[argn++] = "--all";
+			setup_revisions(argn, args, &revs, 0);
+			add_all = 1;
+		} else if (!strcmp(argv[i], "--no-objects"))
+			rci.objects = 0;
+		else if (!strncmp(argv[i], "--ignore-size", 13) ||
+			(t = !strncmp(argv[i], "--keep-size", 11))) {
+			unsigned long sz;
+
+			t = t ? 13 : 11;
+			if (argv[i][t] == '=')
+				git_parse_ulong(argv[i] + t + 1, &sz);
+			else
+				sz = default_ignore_size;
+
+			rci.ignore_size = sz;
+		} else
+			continue;
+	}
+
+	if (!add_all)
+		starts_from_slices(&revs, 0, 0, 0);
+
+	return fuse_cache_slices(&rci, &revs);
+}
+
+static int handle_index(int argc, const char *argv[])
+{
+	return regenerate_cache_index(0);
+}
+
+static int handle_alt(int argc, const char *argv[])
+{
+	if (argc < 1)
+		return -1;
+
+	return make_cache_slice_pointer(0, argv[0]);
+}
+
 static int handle_help(void)
 {
 	char *usage = "\
@@ -183,12 +239,28 @@ commands:\n\
 	return 0;
 }
 
+static int rev_cache_config(const char *k, const char *v, void *cb)
+{
+	/* this could potentially be related to pack.windowmemory, but we want a max around 50mb,
+	 * and .windowmemory is often >700mb, with *large* variations */
+	if (!strcmp(k, "revcache.ignoresize")) {
+		int t;
+
+		t = git_config_ulong(k, v);
+		if (t)
+			default_ignore_size = t;
+	}
+
+	return 0;
+}
+
 int cmd_rev_cache(int argc, const char *argv[], const char *prefix)
 {
 	const char *arg;
 	int r;
 
 	git_config(git_default_config, NULL);
+	git_config(rev_cache_config, NULL);
 
 	if (argc > 1)
 		arg = argv[1];
@@ -199,8 +271,14 @@ int cmd_rev_cache(int argc, const char *argv[], const char *prefix)
 	argv += 2;
 	if (!strcmp(arg, "add"))
 		r = handle_add(argc, argv);
+	else if (!strcmp(arg, "fuse"))
+		r = handle_fuse(argc, argv);
 	else if (!strcmp(arg, "walk"))
 		r = handle_walk(argc, argv);
+	else if (!strcmp(arg, "index"))
+		r = handle_index(argc, argv);
+	else if (!strcmp(arg, "alt"))
+		r = handle_alt(argc, argv);
 	else
 		return handle_help();
 

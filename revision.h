@@ -24,17 +24,31 @@ struct rev_info;
 struct log_info;
 struct string_list;
 
+struct rev_cache_slice_map {
+	unsigned char *map;
+	int size;
+	int last_index;
+};
+
 struct rev_cache_info {
 	/* generation flags */
 	unsigned objects : 1,
 		legs : 1,
-		make_index : 1;
+		make_index : 1,
+		fuse_me : 1;
+
+	/* index inclusion */
+	unsigned overwrite_all : 1;
 
 	/* traversal flags */
 	unsigned add_to_pending : 1;
 
 	/* fuse options */
 	unsigned int ignore_size;
+
+	/* reserved */
+	struct rev_cache_slice_map *maps,
+		*last_map;
 };
 
 struct rev_info {
