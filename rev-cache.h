@@ -10,8 +10,14 @@
 #define RC_OBTAIN_OBJECT_ENTRY(p)			from_disked_rc_object_entry((unsigned char *)(p), 0)
 #define RC_OBTAIN_INDEX_ENTRY(p)			from_disked_rc_index_entry((unsigned char *)(p), 0)
 
-#define RC_ACTUAL_OBJECT_ENTRY_SIZE(e)		(OBJECT_ENTRY_SIZE + RC_PATH_SIZE((e)->merge_nr + (e)->split_nr) + (e)->size_size)
-#define RC_ENTRY_SIZE_OFFSET(e)				(RC_ACTUAL_OBJECT_ENTRY_SIZE(e) - (e)->size_size)
+#define RC_ACTUAL_OBJECT_ENTRY_SIZE(e)	(\
+	OBJECT_ENTRY_SIZE + \
+	RC_PATH_SIZE((e)->merge_nr + (e)->split_nr) + \
+	(e)->size_size + \
+	(e)->name_size\
+)
+#define RC_ENTRY_SIZE_OFFSET(e)			(RC_ACTUAL_OBJECT_ENTRY_SIZE(e) - (e)->name_size - (e)->size_size)
+#define RC_ENTRY_NAME_OFFSET(e)			(RC_ACTUAL_OBJECT_ENTRY_SIZE(e) - (e)->name_size)
 
 /* single index maps objects to cache files */
 struct rc_index_header {
@@ -50,6 +56,8 @@ struct rc_slice_header {
 	uint32_t size;
 
 	unsigned char sha1[20];
+
+	uint32_t name_size;
 };
 
 struct rc_object_entry_ondisk {
@@ -75,7 +83,8 @@ struct rc_object_entry {
 	unsigned char merge_nr; /* : 7 */
 	unsigned char split_nr; /* : 7 */
 	unsigned size_size:3;
-	unsigned padding:5;
+	unsigned name_size:3;
+	unsigned padding:2;
 
 	uint32_t date;
 	uint16_t path;
@@ -83,6 +92,7 @@ struct rc_object_entry {
 	/* merge paths */
 	/* split paths */
 	/* size */
+	/* name id */
 };
 
 struct rc_index_entry *from_disked_rc_index_entry(unsigned char *src, struct rc_index_entry *dst);

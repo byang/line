@@ -28,6 +28,9 @@ struct rev_cache_slice_map {
 	unsigned char *map;
 	int size;
 	int last_index;
+
+	char *names;
+	int name_size;
 };
 
 struct rev_cache_info {
@@ -41,7 +44,8 @@ struct rev_cache_info {
 	unsigned overwrite_all : 1;
 
 	/* traversal flags */
-	unsigned add_to_pending : 1;
+	unsigned add_to_pending : 1,
+		add_names : 1;
 
 	/* fuse options */
 	unsigned int ignore_size;

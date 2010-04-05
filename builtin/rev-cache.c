@@ -178,13 +178,14 @@ static int handle_walk(int argc, const char *argv[])
 	fprintf(stderr, "pending:\n");
 	for (i = 0; i < revs.pending.nr; i++) {
 		struct object *obj = revs.pending.objects[i].item;
+		const char *name = revs.pending.objects[i].name;
 
 		/* unfortunately, despite our careful generation, object duplication *is* a possibility...
 		 * (eg. same object introduced into two different branches) */
 		if (obj->flags & SEEN)
 			continue;
 
-		printf("%s\n", sha1_to_hex(revs.pending.objects[i].item->sha1));
+		printf("%s %s\n", sha1_to_hex(revs.pending.objects[i].item->sha1), name);
 		obj->flags |= SEEN;
 	}
 
