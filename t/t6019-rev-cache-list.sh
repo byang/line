@@ -102,4 +102,10 @@ test_expect_success 'test rev-caches walker directly (unlimited)' '
 	test_cmp_sorted list proper_commit_list
 '
 
+#do the same for objects
+test_expect_success 'test rev-caches walker with objects' '
+	git rev-cache walk --objects HEAD >list &&
+	test_cmp_sorted list proper_object_list
+'
+
 test_done

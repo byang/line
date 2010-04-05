@@ -66,7 +66,8 @@ struct rc_object_entry {
 	unsigned type:3;
 	unsigned is_end:1;
 	unsigned is_start:1;
-	unsigned flag:3; /* unused */
+	unsigned has_objects:1;
+	unsigned flag:2; /* unused */
 	unsigned char *sha1; /* 20 byte */
 
 	unsigned char merge_nr; /* : 7 */
