@@ -251,6 +251,8 @@ int parse_commit_buffer(struct commit *item, void *buffer, unsigned long size)
 	item->tree = lookup_tree(parent);
 	bufptr += 46; /* "tree " + "hex sha1" + "\n" */
 	pptr = &item->parents;
+	while (pop_commit(pptr))
+		; /* clear anything from cache */
 
 	graft = lookup_commit_graft(item->object.sha1);
 	while (bufptr + 48 < tail && !memcmp(bufptr, "parent ", 7)) {
