@@ -3621,7 +3621,6 @@ int cmd_apply(int argc, const char **argv, const char *unused_prefix)
 {
 	int i;
 	int errs = 0;
-	int is_not_gitdir;
 	int binary;
 	int force_apply = 0;
 
@@ -3694,7 +3693,7 @@ int cmd_apply(int argc, const char **argv, const char *unused_prefix)
 		OPT_END()
 	};
 
-	prefix = setup_git_directory_gently(&is_not_gitdir);
+	prefix = startup_info->prefix;
 	prefix_length = prefix ? strlen(prefix) : 0;
 	git_config(git_apply_config, NULL);
 	if (apply_default_whitespace)
@@ -3709,10 +3708,10 @@ int cmd_apply(int argc, const char **argv, const char *unused_prefix)
 		apply = apply_verbosely = 1;
 	if (!force_apply && (diffstat || numstat || summary || check || fake_ancestor))
 		apply = 0;
-	if (check_index && is_not_gitdir)
+	if (check_index && !startup_info->have_repository)
 		die("--index outside a repository");
 	if (cached) {
-		if (is_not_gitdir)
+		if (!startup_info->have_repository)
 			die("--cached outside a repository");
 		check_index = 1;
 	}
