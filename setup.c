@@ -237,7 +237,17 @@ void setup_work_tree(void)
 		git_dir = make_absolute_path(git_dir);
 	if (!work_tree || chdir(work_tree))
 		die("This operation must be run in a work tree");
+
+	/*
+	 * have_run_setup_gitdir is unset in order to avoid die()ing
+	 * inside set_git_env(). We don't actually initialize
+	 * repo twice, we're just relative-izing gitdir
+	 */
+	if (startup_info)
+		startup_info->have_run_setup_gitdir = 0;
 	set_git_dir(make_relative_path(git_dir, work_tree));
+	if (startup_info)
+		startup_info->have_run_setup_gitdir = 1;
 	initialized = 1;
 }
 
@@ -340,6 +350,7 @@ void unset_git_directory(const char *prefix)
 			unset_git_env();
 		startup_info->prefix = NULL;
 		startup_info->have_repository = 0;
+		startup_info->have_run_setup_gitdir = 0;
 	}
 
 	/* Initialized in setup_git_directory_gently_1() */
@@ -515,6 +526,7 @@ const char *setup_git_directory_gently(int *nongit_ok)
 	prefix = setup_git_directory_gently_1(nongit_ok);
 	if (startup_info) {
 		startup_info->prefix = prefix;
+		startup_info->have_run_setup_gitdir = 1;
 		startup_info->have_repository = !nongit_ok || !*nongit_ok;
 	}
 	return prefix;
@@ -609,6 +621,7 @@ char *enter_repo(char *path, int strict)
 		set_git_dir(".");
 		if (startup_info) {
 			startup_info->prefix = NULL;
+			startup_info->have_run_setup_gitdir = 1;
 			startup_info->have_repository = 1;
 		}
 		return path;

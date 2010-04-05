@@ -98,9 +98,18 @@ void unset_git_env(void)
 
 static void setup_git_env(void)
 {
+	if (startup_info && startup_info->have_run_setup_gitdir)
+		die("internal error: setup_git_env can't be called twice");
 	git_dir = getenv(GIT_DIR_ENVIRONMENT);
-	if (!git_dir)
+	if (!git_dir) {
+		/*
+		 * Repo detection should be done by setup_git_directory*
+		 * or enter_repo, not by this function
+		 */
+		if (startup_info)
+			die("internal error: $GIT_DIR is empty");
 		git_dir = read_gitfile_gently(DEFAULT_GIT_DIR_ENVIRONMENT);
+	}
 	if (!git_dir)
 		git_dir = DEFAULT_GIT_DIR_ENVIRONMENT;
 	git_object_dir = getenv(DB_ENVIRONMENT);

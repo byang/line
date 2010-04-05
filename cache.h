@@ -1067,6 +1067,7 @@ int checkout_fast_forward(const unsigned char *from, const unsigned char *to);
 /* git.c */
 struct startup_info {
 	const char *prefix;
+	int have_run_setup_gitdir;
 	int have_repository;
 	int help;
 };
