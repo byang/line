@@ -271,6 +271,11 @@ static int git_help_config(const char *var, const char *value, void *cb)
 
 static struct cmdnames main_cmds, other_cmds;
 
+/*
+ * Used for plain 'git' and 'git help'.
+ * Therefore this should not use git_config(), nor any other function
+ * that requires searching for a repository.
+ */
 void list_common_cmds_help(void)
 {
 	int i, longest = 0;
