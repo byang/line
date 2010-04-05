@@ -42,7 +42,7 @@ test_rev_parse toplevel false false true '' .git
 cd .git || exit 1
 test_rev_parse .git/ false true false '' .
 cd objects || exit 1
-test_rev_parse .git/objects/ false true false '' "$ROOT/.git"
+test_rev_parse .git/objects/ false true false 'objects/' "$ROOT/.git"
 cd ../.. || exit 1
 
 mkdir -p sub/dir || exit 1
