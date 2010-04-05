@@ -754,8 +754,40 @@ static int traverse_cache_slice_1(struct rc_slice_header *head, unsigned char *m
 			}
 		} else if (!ipath_nr && co->date <= date)
 			slop--;
+		else if (!ipath_nr && !upath_nr)
+			break;
 		else
 			slop = SLOP;
+
+		/* before opening further topo-relations, check if the parenting has had medical attention */
+		if (obj->graft) {
+			struct commit_list *list;
+
+			parse_commit(co);
+			obj->flags &= ~FACE_VALUE;
+			last_objects[path] = 0;
+
+			/* we're only interested in its indirect influence */
+			for (list = co->parents; list; list = list->next) {
+				struct rc_index_entry *iep;
+				struct object *po = &list->item->object;
+
+				iep = search_index(po->sha1);
+				if (!iep || hashcmp(idx_caches + 20 * iep->cache_index, head->sha1)) {
+					if (!(obj->flags & UNINTERESTING) && !(po->flags & UNINTERESTING))
+						ioutside = 1;
+				}
+			}
+
+			/* an abrupt end */
+			myworkp = &commit_list_insert(co, myworkp)->next;
+			if (uninteresting)
+				upath_nr--;
+			else
+				ipath_nr--;
+			paths[path] = 0;
+			continue;
+		}
 
 		/* open parents */
 		if (entry->merge_nr) {

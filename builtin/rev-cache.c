@@ -102,8 +102,18 @@ static int test_rev_list(int argc, const char *argv[])
 			flags ^= UNINTERESTING;
 		else if (!strcmp(argv[i], "--objects"))
 			revs.tree_objects = revs.blob_objects = 1;
-		else
-			handle_revision_arg(argv[i], &revs, flags, 1);
+		else {
+			struct commit_graft graft;
+
+			if (argv[i][0] == ':') {
+				handle_revision_arg(argv[i] + 1, &revs, flags, 1);
+
+				hashcpy(graft.sha1, revs.pending.objects[revs.pending.nr - 1].item->sha1);
+				graft.nr_parent = -1;
+				register_commit_graft(&graft, 0);
+			} else
+				handle_revision_arg(argv[i], &revs, flags, 1);
+		}
 	}
 
 	setup_revisions(0, 0, &revs, 0);

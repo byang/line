@@ -22,7 +22,7 @@ struct object_array {
 };
 
 #define TYPE_BITS   3
-#define FLAG_BITS  27
+#define FLAG_BITS  26
 
 /*
  * The object type is stored in 3 bits.
@@ -30,6 +30,7 @@ struct object_array {
 struct object {
 	unsigned parsed : 1;
 	unsigned used : 1;
+	unsigned graft : 1;
 	unsigned type : TYPE_BITS;
 	unsigned flags : FLAG_BITS;
 	unsigned char sha1[20];
