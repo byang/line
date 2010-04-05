@@ -646,6 +646,14 @@ int cmd_rev_parse(int argc, const char **argv, const char *prefix)
 				static char cwd[PATH_MAX];
 				int len;
 				if (gitdir) {
+					if (prefix && !is_absolute_path(gitdir)) {
+						int len;
+						if (!getcwd(cwd, PATH_MAX))
+							die_errno("unable to get current working directory");
+						len = strlen(cwd);
+						printf("%s%s%s\n", cwd, len && cwd[len-1] != '/' ? "/" : "", gitdir);
+						continue;
+					}
 					puts(gitdir);
 					continue;
 				}
