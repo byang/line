@@ -327,7 +327,7 @@ static void handle_internal_command(int argc, const char **argv)
 		{ "gc", cmd_gc, RUN_SETUP },
 		{ "get-tar-commit-id", cmd_get_tar_commit_id },
 		{ "grep", cmd_grep, USE_PAGER },
-		{ "hash-object", cmd_hash_object },
+		{ "hash-object", cmd_hash_object, RUN_SETUP_GENTLY },
 		{ "help", cmd_help },
 		{ "index-pack", cmd_index_pack },
 		{ "init", cmd_init_db },
