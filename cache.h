@@ -430,7 +430,7 @@ extern void verify_non_filename(const char *prefix, const char *name);
 
 #define INIT_DB_QUIET 0x0001
 
-extern int init_db(const char *template_dir, unsigned int flags);
+extern int init_db(const char *git_dir, const char *template_dir, unsigned int flags);
 
 #define alloc_nr(x) (((x)+16)*3/2)
 
