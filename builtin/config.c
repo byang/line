@@ -159,7 +159,8 @@ static int get_value(const char *key_, const char *regex_)
 	local = config_exclusive_filename;
 	if (!local) {
 		const char *home = getenv("HOME");
-		local = repo_config = git_pathdup("config");
+		if (startup_info->have_repository)
+			local = repo_config = git_pathdup("config");
 		if (git_config_global() && home)
 			global = xstrdup(mkpath("%s/.gitconfig", home));
 		if (git_config_system())
@@ -197,7 +198,8 @@ static int get_value(const char *key_, const char *regex_)
 		git_config_from_file(show_config, system_wide, NULL);
 	if (do_all && global)
 		git_config_from_file(show_config, global, NULL);
-	git_config_from_file(show_config, local, NULL);
+	if (local)
+		git_config_from_file(show_config, local, NULL);
 	if (!do_all && !seen && global)
 		git_config_from_file(show_config, global, NULL);
 	if (!do_all && !seen && system_wide)
@@ -215,7 +217,8 @@ static int get_value(const char *key_, const char *regex_)
 		ret = (seen == 1) ? 0 : seen > 1 ? 2 : 1;
 
 free_strings:
-	free(repo_config);
+	if (repo_config)
+		free(repo_config);
 	free(global);
 	return ret;
 }

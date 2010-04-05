@@ -29,7 +29,7 @@ test_expect_success 'gitdir selection on normal repos' '
 # Make sure it would stop at test2, not trash
 test_expect_success 'gitdir selection on unsupported repo' '
 	(cd test2 &&
-	test "$(git config core.repositoryformatversion)" = 99)'
+	test "$(git config --file=.git/config core.repositoryformatversion)" = 99)'
 
 test_expect_success 'gitdir not required mode' '
 	(git apply --stat test.patch &&

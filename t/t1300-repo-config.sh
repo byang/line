@@ -833,7 +833,8 @@ test_expect_success 'skip .git/config if there is no repository' '
 		cd b &&
 		echo "[core]" > .git/config &&
 		echo "wrong = true" >> .git/config &&
-		test -z "$(git var -l | grep core.wrong)"
+		test -z "$(git var -l | grep core.wrong)" &&
+		test -z "$(git config --bool core.wrong)"
 	)
 '
 
