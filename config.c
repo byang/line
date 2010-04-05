@@ -737,7 +737,8 @@ int git_config(config_fn_t fn, void *data)
 	char *repo_config = NULL;
 	int ret;
 
-	repo_config = git_pathdup("config");
+	if (!startup_info || startup_info->have_repository)
+		repo_config = git_pathdup("config");
 	ret = git_config_early(fn, data, repo_config);
 	if (repo_config)
 		free(repo_config);
