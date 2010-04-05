@@ -4,6 +4,7 @@
 #include "diff.h"
 #include "revision.h"
 #include "rev-cache.h"
+#include "list-objects.h"
 
 unsigned long default_ignore_size = 50 * 1024 * 1024; /* 50mb */
 
@@ -74,6 +75,43 @@ static int handle_add(int argc, const char *argv[]) /* args beyond this command 
 		fprintf(stderr, "S %s\n", sha1_to_hex(commit->object.sha1));
 	while ((commit = pop_commit(&ends)))
 		fprintf(stderr, "E %s\n", sha1_to_hex(commit->object.sha1));
+
+	return 0;
+}
+
+static void show_commit(struct commit *commit, void *data)
+{
+	printf("%s\n", sha1_to_hex(commit->object.sha1));
+}
+
+static void show_object(struct object *obj, const struct name_path *path, const char *last)
+{
+	printf("%s\n", sha1_to_hex(obj->sha1));
+}
+
+static int test_rev_list(int argc, const char *argv[])
+{
+	struct rev_info revs;
+	unsigned int flags = 0;
+	int i;
+
+	init_revisions(&revs, 0);
+
+	for (i = 0; i < argc; i++) {
+		if (!strcmp(argv[i], "--not"))
+			flags ^= UNINTERESTING;
+		else if (!strcmp(argv[i], "--objects"))
+			revs.tree_objects = revs.blob_objects = 1;
+		else
+			handle_revision_arg(argv[i], &revs, flags, 1);
+	}
+
+	setup_revisions(0, 0, &revs, 0);
+	revs.topo_order = 1;
+	revs.lifo = 1;
+	prepare_revision_walk(&revs);
+
+	traverse_commit_list(&revs, show_commit, show_object, 0);
 
 	return 0;
 }
@@ -277,6 +315,8 @@ int cmd_rev_cache(int argc, const char *argv[], const char *prefix)
 		r = handle_walk(argc, argv);
 	else if (!strcmp(arg, "index"))
 		r = handle_index(argc, argv);
+	else if (!strcmp(arg, "test"))
+		r = test_rev_list(argc, argv);
 	else if (!strcmp(arg, "alt"))
 		r = handle_alt(argc, argv);
 	else
