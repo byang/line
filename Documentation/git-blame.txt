@@ -9,7 +9,7 @@ SYNOPSIS
 --------
 [verse]
 'git blame' [-c] [-b] [-l] [--root] [-t] [-f] [-n] [-s] [-p] [-w] [--incremental] [-L n,m]
-	    [-S <revs-file>] [-M] [-C] [-C] [-C] [--since=<date>]
+	    [-S <revs-file>] [-M|<num>|] [-C|<num>|] [-C|<num>|] [-C|<num>|] [--since=<date>]
 	    [<rev> | --contents <file> | --reverse <rev>] [--] <file>
 
 DESCRIPTION
@@ -35,6 +35,39 @@ $ git log --pretty=oneline -S'blame_usage'
 5040f17eba15504bad66b14a645bddd9b015ebb7 blame -S <ancestry-file>
 ea4c7f9bf69e781dd0cd88d2bccb2bf5cc15c9a7 git-blame: Make the output
 -----------------------------------------------------------------------------
+
+
+BASIC IDEA
+----------
+
+This section briefly explains the basic idea behind 'git-blame'.  You
+do not have to understand it to use git-blame, but it helps in
+understanding the `-M` and `-C` options.  For the sake of simplicity,
+we assume that history is linear.
+
+A call to `git-blame <rev> -- <file>` works as follows:
+
+- Assume all the lines' blame to <rev> initially.
+
+- Run git diff <rev>^ <rev> and ignore all +/- lines. The unchanged
+  lines are definitely from our parent, so pass the blame of the
+  unchanged lines to parent.
+
+- For the +/- lines, take the blame if there are no `-M` or `-C`
+  options given. 
+
+- Repeat step 2~3 for all the remain lines which does not find
+  a blame until all lines find its blame.
+
+If there are `-M` or `-C` given, the command will try to search for
+same code of current lines and pass blame to it.
+
+With `-M`, this command detects same lines of the current blaming code
+inside the current file. And it will shift the blame to the author of
+the original lines instead of author of current blaming code. It does
+the same for `-C` except that it will search across file boundary and
+multiple commits.
+
 
 OPTIONS
 -------
