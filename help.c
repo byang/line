@@ -221,6 +221,10 @@ void load_command_list(const char *prefix,
 	exclude_cmds(other_cmds, main_cmds);
 }
 
+/*
+ * Used for 'git help -a'.  Therefore this should not use git_config(),
+ * nor any other function that requires searching for a repository.
+ */
 void list_commands(const char *title, struct cmdnames *main_cmds,
 		   struct cmdnames *other_cmds)
 {

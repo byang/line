@@ -294,11 +294,15 @@ static int create_default_files(const char *template_path)
 	return reinit;
 }
 
-int init_db(const char *template_dir, unsigned int flags)
+int init_db(const char *git_dir, const char *template_dir, unsigned int flags)
 {
 	const char *sha1_dir;
 	char *path;
 	int len, reinit;
+
+	set_git_dir(make_absolute_path(git_dir));
+	startup_info->have_repository = 1;
+	startup_info->have_run_setup_gitdir = 1;
 
 	safe_create_dir(get_git_dir(), 0);
 
@@ -509,7 +513,5 @@ int cmd_init_db(int argc, const char **argv, const char *prefix)
 				   get_git_work_tree());
 	}
 
-	set_git_dir(make_absolute_path(git_dir));
-
-	return init_db(template_dir, flags);
+	return init_db(git_dir, template_dir, flags);
 }

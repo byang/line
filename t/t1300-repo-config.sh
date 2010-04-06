@@ -824,12 +824,27 @@ test_expect_success 'check split_cmdline return' "
 	test_must_fail git merge master
 	"
 
+
 test_expect_success 'git -c "key=value" support' '
 	test "z$(git -c name=value config name)" = zvalue &&
 	test "z$(git -c core.name=value config core.name)" = zvalue &&
 	test "z$(git -c CamelCase=value config camelcase)" = zvalue &&
 	test "z$(git -c flag config --bool flag)" = ztrue &&
 	test_must_fail git -c core.name=value config name
+'
+
+test_expect_success 'skip .git/config if there is no repository' '
+	(
+		mkdir -p a/b/.git &&
+		cd a &&
+		GIT_CEILING_DIRECTORIES="`pwd`" &&
+		export GIT_CEILING_DIRECTORIES &&
+		cd b &&
+		echo "[core]" > .git/config &&
+		echo "wrong = true" >> .git/config &&
+		test -z "$(git var -l | grep core.wrong)" &&
+		test -z "$(git config --bool core.wrong)"
+	)
 '
 
 test_done

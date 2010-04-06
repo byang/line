@@ -421,6 +421,8 @@ extern const char **get_pathspec(const char *prefix, const char **pathspec);
 extern void setup_work_tree(void);
 extern const char *setup_git_directory_gently(int *);
 extern const char *setup_git_directory(void);
+extern void unset_git_directory(const char *prefix);
+extern void unset_git_env();
 extern const char *prefix_path(const char *prefix, int len, const char *path);
 extern const char *prefix_filename(const char *prefix, int len, const char *path);
 extern int check_filename(const char *prefix, const char *name);
@@ -429,7 +431,7 @@ extern void verify_non_filename(const char *prefix, const char *name);
 
 #define INIT_DB_QUIET 0x0001
 
-extern int init_db(const char *template_dir, unsigned int flags);
+extern int init_db(const char *git_dir, const char *template_dir, unsigned int flags);
 
 #define alloc_nr(x) (((x)+16)*3/2)
 
@@ -941,6 +943,7 @@ extern int git_config_from_file(config_fn_t fn, const char *, void *);
 extern int git_config_parse_parameter(const char *text);
 extern int git_config_from_parameters();
 extern int git_config(config_fn_t fn, void *);
+extern int git_config_early(config_fn_t fn, void *, const char *repo_config);
 extern int git_parse_ulong(const char *, unsigned long *);
 extern int git_config_int(const char *, const char *);
 extern unsigned long git_config_ulong(const char *, const char *);
@@ -1067,5 +1070,14 @@ int split_cmdline(char *cmdline, const char ***argv);
 
 /* builtin/merge.c */
 int checkout_fast_forward(const unsigned char *from, const unsigned char *to);
+
+/* git.c */
+struct startup_info {
+	const char *prefix;
+	int have_run_setup_gitdir;
+	int have_repository;
+	int help;
+};
+extern struct startup_info *startup_info;
 
 #endif /* CACHE_H */

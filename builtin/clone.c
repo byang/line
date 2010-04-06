@@ -459,9 +459,8 @@ int cmd_clone(int argc, const char **argv, const char *prefix)
 
 	if (safe_create_leading_directories_const(git_dir) < 0)
 		die("could not create leading directories of '%s'", git_dir);
-	set_git_dir(make_absolute_path(git_dir));
 
-	init_db(option_template, (option_verbosity < 0) ? INIT_DB_QUIET : 0);
+	init_db(git_dir, option_template, (option_verbosity < 0) ? INIT_DB_QUIET : 0);
 
 	/*
 	 * At this point, the config exists, so we do not need the
