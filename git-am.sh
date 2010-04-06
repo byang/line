@@ -34,6 +34,7 @@ abort           restore the original branch and abort the patching operation.
 committer-date-is-author-date    lie about committer date
 ignore-date     use current timestamp for author date
 rerere-autoupdate update the index with reused conflict resolution if possible
+add-commit-name* (internal use for git-rebase)
 rebasing*       (internal use for git-rebase)"
 
 . git-sh-setup
@@ -299,6 +300,7 @@ git_apply_opt=
 committer_date_is_author_date=
 ignore_date=
 allow_rerere_autoupdate=
+add_commit_name=
 
 if test "$(git config --bool --get am.keepcr)" = true
 then
@@ -355,6 +357,8 @@ do
 		allow_rerere_autoupdate="$1" ;;
 	-q|--quiet)
 		GIT_QUIET=t ;;
+	--add-commit-name)
+		add_commit_name=t ;;
 	--keep-cr)
 		keepcr=t ;;
 	--no-keep-cr)
@@ -467,6 +471,7 @@ else
 	echo "$keepcr" >"$dotest/keepcr"
 	echo "$scissors" >"$dotest/scissors"
 	echo "$no_inbody_headers" >"$dotest/no_inbody_headers"
+	echo "$add_commit_name" > "$dotest/add_commit_name"
 	echo "$GIT_QUIET" >"$dotest/quiet"
 	echo 1 >"$dotest/next"
 	if test -n "$rebasing"
@@ -525,6 +530,10 @@ then
 	no_inbody_headers=--no-inbody-headers
 else
 	no_inbody_headers=
+fi
+if test "$(cat "$dotest/add_commit_name")" = t
+then
+	add_commit_name=t
 fi
 if test "$(cat "$dotest/quiet")" = t
 then
@@ -650,6 +659,11 @@ do
 		if test '' != "$ADD_SIGNOFF"
 		then
 			echo "$ADD_SIGNOFF"
+		fi
+		if test "$add_commit_name" = t
+		then
+			test -z "$commit" && die "Internal error: expecting a commit name."
+			echo "(cherry picked from commit $commit)"
 		fi
 	    } >"$dotest/final-commit"
 	    ;;

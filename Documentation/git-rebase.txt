@@ -322,6 +322,11 @@ link:howto/revert-a-faulty-merge.txt[revert-a-faulty-merge How-To] for details).
 	so that the commit marked for squashing comes right after the
 	commit to be modified, and change the action of the moved
 	commit from `pick` to `squash` (or `fixup`).
+
+-x::
+	Append to the original commit message a note that indicates which commit
+	this change originated from, similar to cherry-pick's -x option. This
+	option is not compatible with -m, -p or --interactive.
 +
 This option is only valid when the '--interactive' option is used.
 
