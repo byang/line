@@ -100,6 +100,7 @@ static int commit_graft_pos(const unsigned char *sha1)
 
 int register_commit_graft(struct commit_graft *graft, int ignore_dups)
 {
+	struct commit *commit;
 	int pos = commit_graft_pos(graft->sha1);
 
 	if (0 <= pos) {
@@ -124,6 +125,17 @@ int register_commit_graft(struct commit_graft *graft, int ignore_dups)
 			(commit_graft_nr - pos - 1) *
 			sizeof(*commit_graft));
 	commit_graft[pos] = graft;
+
+	commit = lookup_commit(graft->sha1);
+	commit->object.graft = 1;
+	if (commit->object.parsed) {
+		/* we don't want to call this from a parse_commit(), but
+		 * we should ensure commit's parents are "correct"
+		 */
+		commit->object.parsed = 0;
+		parse_commit(commit);
+	}
+
 	return 0;
 }
 
@@ -220,6 +232,7 @@ int write_shallow_commits(struct strbuf *out, int use_pack_protocol)
 
 int unregister_shallow(const unsigned char *sha1)
 {
+	struct commit *commit;
 	int pos = commit_graft_pos(sha1);
 	if (pos < 0)
 		return -1;
@@ -228,6 +241,12 @@ int unregister_shallow(const unsigned char *sha1)
 				sizeof(struct commit_graft *)
 				* (commit_graft_nr - pos - 1));
 	commit_graft_nr--;
+
+	commit = lookup_commit(sha1);
+	commit->object.graft = 0;
+	commit->object.parsed = 0;
+	parse_commit(commit);
+
 	return 0;
 }
 
@@ -241,7 +260,6 @@ int parse_commit_buffer(struct commit *item, void *buffer, unsigned long size)
 
 	if (item->object.parsed)
 		return 0;
-	item->object.parsed = 1;
 	tail += size;
 	if (tail <= bufptr + 46 || memcmp(bufptr, "tree ", 5) || bufptr[45] != '\n')
 		return error("bogus commit object %s", sha1_to_hex(item->object.sha1));
@@ -251,8 +269,16 @@ int parse_commit_buffer(struct commit *item, void *buffer, unsigned long size)
 	item->tree = lookup_tree(parent);
 	bufptr += 46; /* "tree " + "hex sha1" + "\n" */
 	pptr = &item->parents;
+	while (pop_commit(pptr))
+		; /* clear anything from cache */
 
-	graft = lookup_commit_graft(item->object.sha1);
+	/* make sure .graft flag is initialized */
+	prepare_commit_graft();
+	if (item->object.graft)
+		graft = lookup_commit_graft(item->object.sha1);
+	else
+		graft = 0;
+
 	while (bufptr + 48 < tail && !memcmp(bufptr, "parent ", 7)) {
 		struct commit *new_parent;
 
@@ -280,8 +306,12 @@ int parse_commit_buffer(struct commit *item, void *buffer, unsigned long size)
 				continue;
 			pptr = &commit_list_insert(new_parent, pptr)->next;
 		}
-	}
+		item->object.graft = 1;
+	} else
+		item->object.graft = 0;
+
 	item->date = parse_commit_date(bufptr, tail);
+	item->object.parsed = 1;
 
 	return 0;
 }

@@ -13,6 +13,7 @@
 #include "decorate.h"
 #include "log-tree.h"
 #include "string-list.h"
+#include "rev-cache.h"
 
 volatile show_early_output_fn_t show_early_output;
 
@@ -444,7 +445,7 @@ static void try_to_simplify_commit(struct rev_info *revs, struct commit *commit)
 	commit->object.flags |= TREESAME;
 }
 
-static void insert_by_date_cached(struct commit *p, struct commit_list **head,
+void insert_by_date_cached(struct commit *p, struct commit_list **head,
 		    struct commit_list *cached_base, struct commit_list **cache)
 {
 	struct commit_list *new_entry;
@@ -653,6 +654,8 @@ static int limit_list(struct rev_info *revs)
 	struct commit_list *list = revs->commits;
 	struct commit_list *newlist = NULL;
 	struct commit_list **p = &newlist;
+	unsigned char *cache_sha1;
+	char used_cache;
 
 	while (list) {
 		struct commit_list *entry = list;
@@ -665,24 +668,39 @@ static int limit_list(struct rev_info *revs)
 
 		if (revs->max_age != -1 && (commit->date < revs->max_age))
 			obj->flags |= UNINTERESTING;
-		if (add_parents_to_list(revs, commit, &list, NULL) < 0)
-			return -1;
-		if (obj->flags & UNINTERESTING) {
-			mark_parents_uninteresting(commit);
-			if (revs->show_all)
-				p = &commit_list_insert(commit, p)->next;
-			slop = still_interesting(list, date, slop);
-			if (slop)
-				continue;
-			/* If showing all, add the whole pending list to the end */
-			if (revs->show_all)
-				*p = list;
-			break;
+
+		/* rev-cache to the rescue!!! */
+		used_cache = 0;
+		if (!revs->dont_cache_me && !(obj->flags & ADDED)) {
+			cache_sha1 = get_cache_slice(commit);
+			if (cache_sha1) {
+				if (traverse_cache_slice(revs, cache_sha1, commit, &date, &slop, &p, &list) < 0)
+					used_cache = 0;
+				else
+					used_cache = 1;
+			}
 		}
-		if (revs->min_age != -1 && (commit->date > revs->min_age))
-			continue;
-		date = commit->date;
-		p = &commit_list_insert(commit, p)->next;
+
+		if (!used_cache) {
+			if (add_parents_to_list(revs, commit, &list, NULL) < 0)
+				return -1;
+			if (obj->flags & UNINTERESTING) {
+				mark_parents_uninteresting(commit); /* ME: why? */
+				if (revs->show_all)
+					p = &commit_list_insert(commit, p)->next;
+				slop = still_interesting(list, date, slop);
+				if (slop > 0)
+					continue;
+				/* If showing all, add the whole pending list to the end */
+				if (revs->show_all)
+					*p = list;
+				break;
+			}
+			if (revs->min_age != -1 && (commit->date > revs->min_age))
+				continue;
+			date = commit->date;
+			p = &commit_list_insert(commit, p)->next;
+		}
 
 		show = show_early_output;
 		if (!show)
@@ -835,6 +853,8 @@ void init_revisions(struct rev_info *revs, const char *prefix)
 		revs->diffopt.prefix = prefix;
 		revs->diffopt.prefix_length = strlen(prefix);
 	}
+
+	init_rev_cache_info(&revs->rev_cache_info);
 }
 
 static void add_pending_commit_list(struct rev_info *revs,
@@ -1547,6 +1567,11 @@ int setup_revisions(int argc, const char **argv, struct rev_info *revs, struct s
 	if (revs->reflog_info && revs->graph)
 		die("cannot combine --walk-reflogs with --graph");
 
+	/* limits on caching
+	 * todo: implement this functionality */
+	if (revs->prune || revs->diff)
+		revs->dont_cache_me = 1;
+
 	return left;
 }
 
@@ -1829,6 +1854,8 @@ static int commit_match(struct commit *commit, struct rev_info *opt)
 {
 	if (!opt->grep_filter.pattern_list && !opt->grep_filter.header_list)
 		return 1;
+	if (!commit->object.parsed)
+		parse_commit(commit);
 	return grep_buffer(&opt->grep_filter,
 			   NULL, /* we say nothing, not even filename */
 			   commit->buffer, strlen(commit->buffer));
@@ -1892,6 +1919,7 @@ static struct commit *get_revision_1(struct rev_info *revs)
 	do {
 		struct commit_list *entry = revs->commits;
 		struct commit *commit = entry->item;
+		struct object *obj = &commit->object;
 
 		revs->commits = entry->next;
 		free(entry);
@@ -1908,11 +1936,39 @@ static struct commit *get_revision_1(struct rev_info *revs)
 			if (revs->max_age != -1 &&
 			    (commit->date < revs->max_age))
 				continue;
+
+			if (!revs->dont_cache_me) {
+				struct commit_list *queue = 0, **queuep = &queue;
+				unsigned char *cache_sha1;
+
+				if (obj->flags & ADDED)
+					goto skip_parenting;
+
+				cache_sha1 = get_cache_slice(commit);
+				if (cache_sha1) {
+					if (!traverse_cache_slice(revs, cache_sha1, commit, 0, 0, &queuep, &revs->commits)) {
+						struct commit_list *work = revs->commits;
+
+						/* attach queue to end of ->commits */
+						while (work && work->next)
+							work = work->next;
+
+						if (work)
+							work->next = queue;
+						else
+							revs->commits = queue;
+
+						goto skip_parenting;
+					}
+				}
+			}
+
 			if (add_parents_to_list(revs, commit, &revs->commits, NULL) < 0)
 				die("Failed to traverse parents of commit %s",
 				    sha1_to_hex(commit->object.sha1));
 		}
 
+skip_parenting:
 		switch (simplify_commit(revs, commit)) {
 		case commit_ignore:
 			continue;

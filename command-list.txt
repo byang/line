@@ -100,6 +100,7 @@ git-request-pull                        foreignscminterface
 git-rerere                              ancillaryinterrogators
 git-reset                               mainporcelain common
 git-revert                              mainporcelain
+git-rev-cache                           plumbingmanipulators
 git-rev-list                            plumbinginterrogators
 git-rev-parse                           ancillaryinterrogators
 git-rm                                  mainporcelain common

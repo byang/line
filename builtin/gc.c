@@ -22,6 +22,7 @@ static const char * const builtin_gc_usage[] = {
 	NULL
 };
 
+static char do_rev_cache;
 static int pack_refs = 1;
 static int aggressive_window = 250;
 static int gc_auto_threshold = 6700;
@@ -34,9 +35,14 @@ static const char *argv_reflog[] = {"reflog", "expire", "--all", NULL};
 static const char *argv_repack[MAX_ADD] = {"repack", "-d", "-l", NULL};
 static const char *argv_prune[] = {"prune", "--expire", NULL, NULL};
 static const char *argv_rerere[] = {"rerere", "gc", NULL};
+static const char *argv_rev_cache[] = {"rev-cache", "fuse", "--all", "--ignore-size", NULL};
 
 static int gc_config(const char *var, const char *value, void *cb)
 {
+	if (!strcmp(var, "gc.revcache")) {
+		do_rev_cache = 1;
+		return 0;
+	}
 	if (!strcmp(var, "gc.packrefs")) {
 		if (value && !strcmp(value, "notbare"))
 			pack_refs = -1;
@@ -249,6 +255,9 @@ int cmd_gc(int argc, const char **argv, const char *prefix)
 
 	if (run_command_v_opt(argv_rerere, RUN_GIT_CMD))
 		return error(FAILED_RUN, argv_rerere[0]);
+
+	if (do_rev_cache && run_command_v_opt(argv_rev_cache, RUN_GIT_CMD))
+		return error(FAILED_RUN, argv_rev_cache[0]);
 
 	if (auto_gc && too_many_loose_objects())
 		warning("There are too many unreachable loose objects; "
