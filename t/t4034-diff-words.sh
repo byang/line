@@ -55,6 +55,72 @@ test_expect_success 'word diff with runs of whitespace' '
 
 '
 
+test_expect_success '--word-diff=color' '
+
+	word_diff --word-diff=color
+
+'
+
+test_expect_success '--color --word-diff=color' '
+
+	word_diff --color --word-diff=auto
+
+'
+
+sed 's/#.*$//' > expect <<EOF
+diff --git a/pre b/post
+index 330b04f..5ed8eff 100644
+--- a/pre
++++ b/post
+@@ -1,3 +1,7 @@
+-h(4)
++h(4),hh[44]
+~
+ # significant space
+~
+ a = b + c
+~
+~
++aa = a
+~
+~
++aeff = aeff * ( aaa )
+~
+EOF
+
+test_expect_success '--word-diff=porcelain' '
+
+	word_diff --word-diff=porcelain
+
+'
+
+cat > expect <<EOF
+diff --git a/pre b/post
+index 330b04f..5ed8eff 100644
+--- a/pre
++++ b/post
+@@ -1,3 +1,7 @@
+[-h(4)-]{+h(4),hh[44]+}
+
+a = b + c
+
+{+aa = a+}
+
+{+aeff = aeff * ( aaa )+}
+EOF
+
+test_expect_success '--word-diff=plain' '
+
+	word_diff --word-diff=plain
+
+'
+
+test_expect_success '--no-color --word-diff=color' '
+
+	word_diff --no-color --word-diff=auto
+
+'
+
 cat > expect <<\EOF
 <WHITE>diff --git a/pre b/post<RESET>
 <WHITE>index 330b04f..5ed8eff 100644<RESET>
@@ -141,6 +207,10 @@ cp expect.letter-runs-are-words expect
 
 test_expect_success 'command-line overrides config' '
 	word_diff --color-words="[a-z]+"
+'
+
+test_expect_success 'command-line overrides config: --word-diff-regex' '
+	word_diff --color --word-diff-regex="[a-z]+"
 '
 
 cp expect.non-whitespace-is-word expect

@@ -560,16 +560,60 @@ static void diff_words_append(char *line, unsigned long len,
 	buffer->text.ptr[buffer->text.size] = '\0';
 }
 
+struct diff_words_style
+{
+	enum diff_words_type type;
+	int is_color;
+	const char *new_prefix;
+	const char *new_suffix;
+	const char *old_prefix;
+	const char *old_suffix;
+	const char *ctx_prefix;
+	const char *ctx_suffix;
+	const char *newline;
+};
+
+struct diff_words_style diff_words_styles[] = {
+	{ DIFF_WORDS_PORCELAIN, 0, "+", "\n", "-", "\n", " ", "\n", "~\n" },
+	{ DIFF_WORDS_PLAIN, 0, "{+", "+}", "[-", "-]", "", "", "\n" },
+	{ DIFF_WORDS_COLOR, 1, NULL, NULL, NULL, NULL, NULL, NULL, "\n" }
+};
+
 struct diff_words_data {
 	struct diff_words_buffer minus, plus;
 	const char *current_plus;
 	FILE *file;
 	regex_t *word_regex;
+	enum diff_words_type type;
+	struct diff_words_style *style;
 };
+
+static int fn_out_diff_words_write_helper(FILE *fp,
+					  const char *prefix,
+					  const char *suffix,
+					  const char *newline,
+					  size_t count, const char *buf)
+{
+	while (count) {
+		char *p = memchr(buf, '\n', count);
+		if (p != buf && (fputs(prefix, fp) < 0 ||
+				 fwrite(buf, p ? p - buf : count, 1, fp) != 1 ||
+				 fputs(suffix, fp) < 0))
+			return -1;
+		if (!p)
+			return 0;
+		if (fputs(newline, fp) < 0)
+			return -1;
+		count -= p + 1 - buf;
+		buf = p + 1;
+	}
+	return 0;
+}
 
 static void fn_out_diff_words_aux(void *priv, char *line, unsigned long len)
 {
 	struct diff_words_data *diff_words = priv;
+	struct diff_words_style *style = diff_words->style;
 	int minus_first, minus_len, plus_first, plus_len;
 	const char *minus_begin, *minus_end, *plus_begin, *plus_end;
 
@@ -593,16 +637,20 @@ static void fn_out_diff_words_aux(void *priv, char *line, unsigned long len)
 		plus_begin = plus_end = diff_words->plus.orig[plus_first].end;
 
 	if (diff_words->current_plus != plus_begin)
-		fwrite(diff_words->current_plus,
-				plus_begin - diff_words->current_plus, 1,
-				diff_words->file);
+		fn_out_diff_words_write_helper(diff_words->file,
+				style->ctx_prefix, style->ctx_suffix,
+				style->newline,
+				plus_begin - diff_words->current_plus,
+				diff_words->current_plus);
 	if (minus_begin != minus_end)
-		color_fwrite_lines(diff_words->file,
-				diff_get_color(1, DIFF_FILE_OLD),
+		fn_out_diff_words_write_helper(diff_words->file,
+				style->old_prefix, style->old_suffix,
+				style->newline,
 				minus_end - minus_begin, minus_begin);
 	if (plus_begin != plus_end)
-		color_fwrite_lines(diff_words->file,
-				diff_get_color(1, DIFF_FILE_NEW),
+		fn_out_diff_words_write_helper(diff_words->file,
+				style->new_prefix, style->new_suffix,
+				style->newline,
 				plus_end - plus_begin, plus_begin);
 
 	diff_words->current_plus = plus_end;
@@ -685,11 +733,13 @@ static void diff_words_show(struct diff_words_data *diff_words)
 	xdemitconf_t xecfg;
 	xdemitcb_t ecb;
 	mmfile_t minus, plus;
+	struct diff_words_style *style = diff_words->style;
 
 	/* special case: only removal */
 	if (!diff_words->plus.text.size) {
-		color_fwrite_lines(diff_words->file,
-			diff_get_color(1, DIFF_FILE_OLD),
+		fn_out_diff_words_write_helper(diff_words->file,
+			style->old_prefix, style->old_suffix,
+			style->newline,
 			diff_words->minus.text.size, diff_words->minus.text.ptr);
 		diff_words->minus.text.size = 0;
 		return;
@@ -710,10 +760,11 @@ static void diff_words_show(struct diff_words_data *diff_words)
 	free(plus.ptr);
 	if (diff_words->current_plus != diff_words->plus.text.ptr +
 			diff_words->plus.text.size)
-		fwrite(diff_words->current_plus,
+		fn_out_diff_words_write_helper(diff_words->file,
+			style->ctx_prefix, style->ctx_suffix,
+			style->newline,
 			diff_words->plus.text.ptr + diff_words->plus.text.size
-			- diff_words->current_plus, 1,
-			diff_words->file);
+			- diff_words->current_plus, diff_words->current_plus);
 	diff_words->minus.text.size = diff_words->plus.text.size = 0;
 }
 
@@ -825,6 +876,9 @@ static void fn_out_consume(void *priv, char *line, unsigned long len)
 
 	if (len < 1) {
 		emit_line(ecbdata->file, reset, reset, line, len);
+		if (ecbdata->diff_words
+		    && ecbdata->diff_words->type == DIFF_WORDS_PORCELAIN)
+			fputs("~\n", ecbdata->file);
 		return;
 	}
 
@@ -839,9 +893,13 @@ static void fn_out_consume(void *priv, char *line, unsigned long len)
 			return;
 		}
 		diff_words_flush(ecbdata);
-		line++;
-		len--;
-		emit_line(ecbdata->file, plain, reset, line, len);
+		if (ecbdata->diff_words->type == DIFF_WORDS_PORCELAIN) {
+			emit_line(ecbdata->file, plain, reset, line, len);
+			fputs("~\n", ecbdata->file);
+		} else {
+			/* don't print the prefix character */
+			emit_line(ecbdata->file, plain, reset, line+1, len-1);
+		}
 		return;
 	}
 
@@ -1739,10 +1797,19 @@ static void builtin_diff(const char *name_a,
 			xecfg.ctxlen = strtoul(diffopts + 10, NULL, 10);
 		else if (!prefixcmp(diffopts, "-u"))
 			xecfg.ctxlen = strtoul(diffopts + 2, NULL, 10);
-		if (DIFF_OPT_TST(o, COLOR_DIFF_WORDS)) {
+		if (o->word_diff) {
+			int i;
+
+			if (o->word_diff == DIFF_WORDS_AUTO) {
+				if (DIFF_OPT_TST(o, COLOR_DIFF))
+					o->word_diff = DIFF_WORDS_COLOR;
+				else
+					o->word_diff = DIFF_WORDS_PLAIN;
+			}
 			ecbdata.diff_words =
 				xcalloc(1, sizeof(struct diff_words_data));
 			ecbdata.diff_words->file = o->file;
+			ecbdata.diff_words->type = o->word_diff;
 			if (!o->word_regex)
 				o->word_regex = userdiff_word_regex(one);
 			if (!o->word_regex)
@@ -1758,10 +1825,27 @@ static void builtin_diff(const char *name_a,
 					die ("Invalid regular expression: %s",
 							o->word_regex);
 			}
+			for (i = 0; i < ARRAY_SIZE(diff_words_styles); i++) {
+				if (o->word_diff == diff_words_styles[i].type) {
+					ecbdata.diff_words->style =
+						&diff_words_styles[i];
+					break;
+				}
+			}
+			if (ecbdata.diff_words->style->is_color) {
+				struct diff_words_style *s
+					= ecbdata.diff_words->style;
+				s->new_prefix = diff_get_color_opt(o, DIFF_FILE_NEW);
+				s->old_prefix = diff_get_color_opt(o, DIFF_FILE_OLD);
+				s->ctx_prefix = diff_get_color_opt(o, DIFF_PLAIN);
+				s->new_suffix = s->old_suffix
+					= diff_get_color_opt(o, DIFF_RESET);
+				s->ctx_suffix = "";
+			}
 		}
 		xdi_diff_outf(&mf1, &mf2, fn_out_consume, &ecbdata,
 			      &xpp, &xecfg, &ecb);
-		if (DIFF_OPT_TST(o, COLOR_DIFF_WORDS))
+		if (o->word_diff)
 			free_diff_words_data(&ecbdata);
 		if (textconv_one)
 			free(mf1.ptr);
@@ -2830,12 +2914,38 @@ int diff_opt_parse(struct diff_options *options, const char **av, int ac)
 		DIFF_OPT_CLR(options, COLOR_DIFF);
 	else if (!strcmp(arg, "--color-words")) {
 		DIFF_OPT_SET(options, COLOR_DIFF);
-		DIFF_OPT_SET(options, COLOR_DIFF_WORDS);
+		options->word_diff = DIFF_WORDS_COLOR;
 	}
 	else if (!prefixcmp(arg, "--color-words=")) {
 		DIFF_OPT_SET(options, COLOR_DIFF);
-		DIFF_OPT_SET(options, COLOR_DIFF_WORDS);
+		options->word_diff = DIFF_WORDS_COLOR;
 		options->word_regex = arg + 14;
+	}
+	else if (!strcmp(arg, "--word-diff")) {
+		if (options->word_diff == DIFF_WORDS_NONE)
+			options->word_diff = DIFF_WORDS_AUTO;
+	}
+	else if (!prefixcmp(arg, "--word-diff=")) {
+		const char *type = arg + 12;
+		if (!strcmp(type, "auto"))
+			options->word_diff = DIFF_WORDS_AUTO;
+		else if (!strcmp(type, "plain"))
+			options->word_diff = DIFF_WORDS_PLAIN;
+		else if (!strcmp(type, "color")) {
+			DIFF_OPT_SET(options, COLOR_DIFF);
+			options->word_diff = DIFF_WORDS_COLOR;
+		}
+		else if (!strcmp(type, "porcelain"))
+			options->word_diff = DIFF_WORDS_PORCELAIN;
+		else if (!strcmp(type, "none"))
+			options->word_diff = DIFF_WORDS_NONE;
+		else
+			die("bad --word-diff argument: %s", type);
+	}
+	else if (!prefixcmp(arg, "--word-diff-regex=")) {
+		if (options->word_diff == DIFF_WORDS_NONE)
+			options->word_diff = DIFF_WORDS_AUTO;
+		options->word_regex = arg + 18;
 	}
 	else if (!strcmp(arg, "--exit-code"))
 		DIFF_OPT_SET(options, EXIT_WITH_STATUS);
