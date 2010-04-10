@@ -2165,6 +2165,15 @@ static int blame_copy_callback(const struct option *option, const char *arg, int
 	int *opt = option->value;
 
 	/*
+	 * Warn the users when more than 3 '-C' options are given and
+	 * ignore the corresponding numeric argument of it.
+	 */
+	if (*opt & PICKAXE_BLAME_COPY_HARDEST) {
+		warning("The additional '-C' above 3 is not supported.");
+		return 0;
+	}
+
+	/*
 	 * -C enables copy from removed files;
 	 * -C -C enables copy from existing files, but only
 	 *       when blaming a new file;
