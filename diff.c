@@ -2580,6 +2580,11 @@ int diff_setup_done(struct diff_options *options)
 	if (count > 1)
 		die("--name-only, --name-status, --check and -s are mutually exclusive");
 
+	if (DIFF_OPT_TST(options, FOLLOW_RENAMES)) {
+		if (options->nr_paths != 1)
+			die("--follow can only follow renames on one pathname at a time.");
+	}
+
 	/*
 	 * Most of the time we can say "there are changes"
 	 * only by checking if there are changed paths, but

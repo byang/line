@@ -326,10 +326,17 @@ int diff_tree(struct tree_desc *t1, struct tree_desc *t2, const char *base, stru
  *  - single entry
  *  - not a valid previous file
  */
-static inline int diff_might_be_rename(void)
+static inline int diff_might_be_rename(struct diff_options *opt)
 {
-	return diff_queued_diff.nr == 1 &&
-		!DIFF_FILE_VALID(diff_queued_diff.queue[0]->one);
+	if (diff_queued_diff.nr != 1)
+		return 0;
+
+	struct diff_filespec *f = NULL;
+	if (DIFF_OPT_TST(opt, REVERSE_DIFF))
+		f = diff_queued_diff.queue[0]->two;
+	else
+		f = diff_queued_diff.queue[0]->one;
+	return !DIFF_FILE_VALID(f);
 }
 
 static void try_to_follow_renames(struct tree_desc *t1, struct tree_desc *t2, const char *base, struct diff_options *opt)
@@ -414,7 +421,7 @@ int diff_tree_sha1(const unsigned char *old, const unsigned char *new, const cha
 	init_tree_desc(&t1, tree1, size1);
 	init_tree_desc(&t2, tree2, size2);
 	retval = diff_tree(&t1, &t2, base, opt);
-	if (DIFF_OPT_TST(opt, FOLLOW_RENAMES) && diff_might_be_rename()) {
+	if (DIFF_OPT_TST(opt, FOLLOW_RENAMES) && diff_might_be_rename(opt)) {
 		init_tree_desc(&t1, tree1, size1);
 		init_tree_desc(&t2, tree2, size2);
 		try_to_follow_renames(&t1, &t2, base, opt);
