@@ -385,6 +385,12 @@ static void try_to_follow_renames(struct tree_desc *t1, struct tree_desc *t2, co
 			diff_tree_release_paths(opt);
 			opt->paths[0] = xstrdup(p->one->path);
 			diff_tree_setup_paths(opt->paths, opt);
+			/* Exchange the path if this is a reversed diff */
+			if (DIFF_OPT_TST(opt, REVERSE_DIFF)) {
+				struct diff_filespec *tmp = choice->one;
+				choice->one = choice->two;
+				choice->two = tmp;
+			}
 			break;
 		}
 	}
